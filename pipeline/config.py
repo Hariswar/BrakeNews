@@ -88,6 +88,10 @@ COMPONENT_GROUP_ALIASES = {
     "NONE": "UNKNOWN OR OTHER",
 }
 
+# Sentence-embedding model for complaint narratives (Phase 2): small and fast enough to embed all
+# ~1.6M distinct narratives on a laptop. It reads the first 256 tokens of each text.
+EMBED_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+
 SOURCES = (
     Source("complaints", f"{NHTSA_FFDD}/cmpl/FLAT_CMPL.zip", COMPLAINT_COLUMNS),
     # NHTSA no longer posts a single FLAT_RCL.zip; recalls are split at 2010.

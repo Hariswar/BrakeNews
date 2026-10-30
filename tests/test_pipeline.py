@@ -2,9 +2,12 @@ from datetime import date
 from pathlib import Path
 
 import duckdb
+import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytest
 
-from pipeline import clean
+from pipeline import clean, embed, scrub
 from pipeline.config import COMPLAINT_COLUMNS, RECALL_COLUMNS
 from pipeline.ingest import tsv_to_parquet
 
@@ -149,3 +152,78 @@ def test_recall_cleaning(tmp_path: Path):
         SELECT do_not_drive, park_outside, component_groups
         FROM '{out / 'recall_timeline.parquet'}'""").fetchall()
     assert tl == [(True, False, ["ENGINE"])]
+
+
+@pytest.mark.parametrize("raw, want", [
+    ("CALL ME AT (314) 555-0182 OR EMAIL JDOE77@GMAIL.COM. *AK",
+     "CALL ME AT [PHONE] OR EMAIL [EMAIL]."),
+    ("VIN 1HGCM82633A004352, LAST 8 OF VIN 3A004352.*DT*AK", "VIN [VIN], LAST 8 OF VIN [VIN]."),
+    ("MR. AND MRS. SMITH MET MR. JOHN W. SMITH. HE SAID NO.",
+     "MR. AND MRS. [NAME] MET MR. [NAME]. HE SAID NO."),
+    ("MR. SMITH CONTACTED ME ABOUT IT.", "MR. [NAME] CONTACTED ME ABOUT IT."),
+    ("My name is maria lopez and I live at 1234 Oak St, Springfield.",
+     "My name is [NAME] and I live at [ADDRESS], Springfield."),
+    ("CASE NUMBER: 1-8765432109 WAS OPENED. CRM:98765432101234. PHONE# 702/555-1234.",
+     "CASE NUMBER: [ID] WAS OPENED. CRM:[NUMBER]. PHONE# [PHONE]."),
+    ("PHOTOS: HTTPS://WWW.FLICKR.COM/PHOTOS/JDOE/ALBUM-1 LICENSE PLATE ABC1234, ZIP CODE 65401.",
+     "PHOTOS: [URL] LICENSE PLATE [PLATE], ZIP CODE [ZIP]."),
+    # Non-breaking and doubled spaces must not hide details.
+    ("CALLED (800)\xa0555-0199. MY  NAME IS DUANE  SMITH AND",
+     "CALLED [PHONE]. MY NAME IS [NAME] AND"),
+    ("GMy name is Duane Smith and I", "GMy name is [NAME] and I"),
+    # Left alone: NHTSA's own redactions, model names, vehicle facts, recall and bulletin numbers,
+    # "MS"/"DR" without a period, emphasis that looks like a reviewer code.
+    ("MY NAME IS [XXX]. MY 2019 TOYOTA MR2 HAS 4 WHEEL DRIVE, 45,000 MILES, 65 MPH.",
+     "MY NAME IS [XXX]. MY 2019 TOYOTA MR2 HAS 4 WHEEL DRIVE, 45,000 MILES, 65 MPH."),
+    ("ESTIMATED VEHICLES AFFECTED: 234567  2019 HONDA CIVIC",
+     "ESTIMATED VEHICLES AFFECTED: 234567 2019 HONDA CIVIC"),
+    ("RECALL 15V123000, RECALL NUMBER 1234567890, TSB #123456789. THE AIRBAG DID *NOT* DEPLOY.",
+     "RECALL 15V123000, RECALL NUMBER 1234567890, TSB #123456789. THE AIRBAG DID *NOT* DEPLOY."),
+    ("MS GULF COAST, MISS FIRE ON CYL 3, HIS DR. APPOINTMENTS. *NO ANSWER REQUIRED",
+     "MS GULF COAST, MISS FIRE ON CYL 3, HIS DR. APPOINTMENTS. *NO ANSWER REQUIRED"),
+    ("MY 2004 CHEVROLET BLAZER, 4 DR. LT HAS A FUEL GAUGE PROBLEM",
+     "MY 2004 CHEVROLET BLAZER, 4 DR. LT HAS A FUEL GAUGE PROBLEM"),
+])
+def test_scrub_masks_personal_details_only(raw: str, want: str):
+    assert scrub.scrub(raw) == want
+
+
+def test_scrub_and_embed_are_incremental(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(embed, "MIN_FREE_BYTES", 0)
+    con = duckdb.connect()
+    calls = []
+
+    def write_complaints(rows):
+        pq.write_table(pa.table({"complaint_id": [r[0] for r in rows],
+                                 "description_raw": [r[1] for r in rows]}),
+                       tmp_path / "complaints.parquet")
+
+    def fake_encode(texts):
+        calls.append(len(texts))
+        return np.full((len(texts), 4), 0.5, dtype=np.float32)
+
+    def vectors():
+        return con.execute(f"""SELECT narrative_id, embedding FROM
+            read_parquet('{tmp_path / "embeddings/fake--model/*.parquet"}')""").fetchall()
+
+    # One complaint listed under two components repeats its text; empty texts are skipped.
+    rows = [("1", "BRAKES FAILED. CALL 314-555-0182 *AK"),
+            ("2", "BRAKES FAILED. CALL 314-555-0182"), ("3", None), ("4", "*TR")]
+    write_complaints(rows)
+    scrub.run(clean=tmp_path)
+    got = con.execute(f"SELECT complaint_id, narrative_id, description FROM "
+                      f"'{tmp_path / 'narratives.parquet'}' ORDER BY 1").fetchall()
+    assert [(r[0], r[2]) for r in got] == [("1", "BRAKES FAILED. CALL [PHONE]"),
+                                           ("2", "BRAKES FAILED. CALL [PHONE]")]
+    assert got[0][1] == got[1][1]  # same text, one narrative_id, one vector
+
+    embed.run(clean=tmp_path, model_name="fake/model", encode=fake_encode)
+    embed.run(clean=tmp_path, model_name="fake/model", encode=fake_encode)  # nothing new to do
+    assert calls == [1]
+    write_complaints(rows + [("5", "ENGINE STALLED ON THE HIGHWAY.")])
+    scrub.run(clean=tmp_path)
+    embed.run(clean=tmp_path, model_name="fake/model", encode=fake_encode)
+    assert calls == [1, 1]  # only the new text was encoded
+    ids = {r[0] for r in con.execute(
+        f"SELECT narrative_id FROM '{tmp_path / 'narratives.parquet'}'").fetchall()}
+    assert {v[0] for v in vectors()} == ids and all(v[1] == [0.5] * 4 for v in vectors())
