@@ -2,7 +2,7 @@ PY ?= python3.12
 VENV := .venv
 BIN := $(VENV)/bin
 
-.PHONY: setup setup-site build ingest clean-data scrub embed spotcheck test lint site-dev site-build
+.PHONY: setup setup-site build ingest clean-data scrub embed cluster name signals spotcheck test lint site-dev site-build
 
 setup:            ## Python env with every pipeline dependency
 	$(PY) -m venv $(VENV)
@@ -26,6 +26,15 @@ scrub:
 
 embed:            ## Phase 2: sentence embeddings of the scrubbed narratives (slow, resumable)
 	$(BIN)/python -m pipeline embed
+
+cluster:          ## Phase 2: assign narratives to themes; first run fits them (~15 min)
+	$(BIN)/python -m pipeline cluster
+
+name:             ## Phase 2: name unnamed clusters with Claude (needs ANTHROPIC_API_KEY)
+	$(BIN)/python -m pipeline name
+
+signals:          ## Phase 3 start: vehicle x theme signals, recall matching, backtest
+	$(BIN)/python -m pipeline signals
 
 spotcheck:
 	$(BIN)/python -m pipeline spotcheck -n 20

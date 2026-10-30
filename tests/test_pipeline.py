@@ -1,5 +1,7 @@
+import json
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 import duckdb
 import numpy as np
@@ -171,6 +173,20 @@ def test_recall_cleaning(tmp_path: Path):
     ("CALLED (800)\xa0555-0199. MY  NAME IS DUANE  SMITH AND",
      "CALLED [PHONE]. MY NAME IS [NAME] AND"),
     ("GMy name is Duane Smith and I", "GMy name is [NAME] and I"),
+    ("TL* THE CONTACT OWNS A 2011 HONDA PILOT.", "THE CONTACT OWNS A 2011 HONDA PILOT."),
+    ("DT*: THE CONTACT STATED.", "THE CONTACT STATED."),
+    ("F** THIS CAR", "F** THIS CAR"),
+    # Street addresses and ZIPs anywhere; names in sign-offs at the end.
+    ("TOWED TO ELM CHEVROLET (301 E CHURCH ST, ELMIRA, NY 14901) AND P.O. BOX 8234, SC 29202.",
+     "TOWED TO ELM CHEVROLET ([ADDRESS], ELMIRA, NY [ZIP]) AND [ADDRESS], SC [ZIP]."),
+    ("PLEASE HELP. SINCERELY, SCOTT A. HEFFNER", "PLEASE HELP. SINCERELY, [NAME]"),
+    ("INTERNET SITES THANK YOU STEVE OHMAN", "INTERNET SITES THANK YOU [NAME]"),
+    ("IT IS SO THIN... THANKS ! Sharon.", "IT IS SO THIN... THANKS ! [NAME]."),
+    # Left alone: ordinary sentences that look like sign-offs or addresses.
+    ("I SINCERELY HOPE SO. ATTENTION IS RESPECTFULLY REQUESTED. THANK YOU FOR YOUR TIME.",
+     "I SINCERELY HOPE SO. ATTENTION IS RESPECTFULLY REQUESTED. THANK YOU FOR YOUR TIME."),
+    ("DROVE 45 MILES DOWN THE ROAD, 4 WHEEL DRIVE, 35 MPH ON HWY 70, 2019 HONDA CIVIC LX.",
+     "DROVE 45 MILES DOWN THE ROAD, 4 WHEEL DRIVE, 35 MPH ON HWY 70, 2019 HONDA CIVIC LX."),
     # Left alone: NHTSA's own redactions, model names, vehicle facts, recall and bulletin numbers,
     # "MS"/"DR" without a period, emphasis that looks like a reviewer code.
     ("MY NAME IS [XXX]. MY 2019 TOYOTA MR2 HAS 4 WHEEL DRIVE, 45,000 MILES, 65 MPH.",
@@ -227,3 +243,254 @@ def test_scrub_and_embed_are_incremental(tmp_path: Path, monkeypatch):
     ids = {r[0] for r in con.execute(
         f"SELECT narrative_id FROM '{tmp_path / 'narratives.parquet'}'").fetchall()}
     assert {v[0] for v in vectors()} == ids and all(v[1] == [0.5] * 4 for v in vectors())
+
+
+def _write_vectors(clean: Path, ids: list[str], vectors: np.ndarray):
+    out = clean / "embeddings" / "fake--model"
+    out.mkdir(parents=True, exist_ok=True)
+    v = vectors.astype(np.float16)
+    pq.write_table(pa.table({
+        "narrative_id": ids,
+        "embedding": pa.FixedSizeListArray.from_arrays(pa.array(v.reshape(-1)), v.shape[1]),
+    }), out / "part-0.parquet")
+
+
+def _themed_corpus(tmp_path: Path, per_theme: int = 40):
+    """Two well-separated themes plus a stray narrative pointing elsewhere."""
+    rng = np.random.default_rng(1)
+    themes = {"BRAKES GRIND AND PEDAL SINKS": np.eye(8)[0], "AIRBAG LIGHT STAYS ON": np.eye(8)[1]}
+    ids, texts, vecs = [], [], []
+    for t, (text, base) in enumerate(themes.items()):
+        for i in range(per_theme):
+            ids.append(f"n{t}-{i:03d}")
+            texts.append(f"{text} AFTER {i} MILES")
+            v = base + rng.normal(0, 0.05, 8)
+            vecs.append(v / np.linalg.norm(v))
+    ids.append("stray")
+    texts.append("RADIO STOPPED WORKING")
+    vecs.append(np.eye(8)[5])
+    pq.write_table(pa.table({"complaint_id": [f"c-{i}" for i in ids], "narrative_id": ids,
+                             "description": texts}), tmp_path / "narratives.parquet")
+    pq.write_table(pa.table({
+        "complaint_id": [f"c-{i}" for i in ids], "odi_number": [f"o-{i}" for i in ids],
+        "component_group": ["SERVICE BRAKES" if i.startswith("n0") else "AIR BAGS" for i in ids],
+        "make": ["HONDA"] * len(ids), "model": ["CIVIC"] * len(ids),
+    }), tmp_path / "complaints.parquet")
+    _write_vectors(tmp_path, ids, np.array(vecs))
+    return ids, texts, np.array(vecs)
+
+
+def test_vehicle_offsets_remove_what_a_vehicle_shares(tmp_path: Path):
+    from pipeline import cluster
+
+    # Theme on axis 0 or 1; every FORD F-150 narrative also leans hard along axis 2.
+    rows = [("a", "FORD", "F-150", [1, 0, 3]), ("b", "FORD", "F-150", [0, 1, 3]),
+            ("c", "FORD", "RANGER", [1, 0, 0]), ("d", "KIA", "RIO", [0, 1, 0]),
+            ("e", None, None, [1, 0, 0])]
+    ids = [r[0] for r in rows]
+    pq.write_table(pa.table({"complaint_id": ids, "narrative_id": ids, "description": ids}),
+                   tmp_path / "narratives.parquet")
+    pq.write_table(pa.table({"complaint_id": ids, "make": [r[1] for r in rows],
+                             "model": [r[2] for r in rows]}), tmp_path / "complaints.parquet")
+    v = np.array([r[3] for r in rows], dtype=np.float32)
+    group, means = cluster.vehicle_offsets(tmp_path, np.array(ids), v, min_group=2)
+    x = cluster.adjust(v, group, means)
+    assert group[0] == group[1] != group[2]  # F-150 has its own mean; RANGER falls back to FORD
+    assert group[3] == group[4] == len(means) - 1  # too few KIA rows, unknown make: unchanged
+    assert v[0] @ v[1] / 10 == pytest.approx(0.9) and x[0] @ x[1] < 0  # alike via the vehicle
+    assert np.allclose(x[3], [0, 1, 0]) and np.allclose(x[4], [1, 0, 0])
+
+
+def _fit_cluster(tmp_path):
+    from pipeline import cluster
+
+    # The identity "reducer" stands in for UMAP: the toy vectors are already low-dimensional.
+    cluster.run(clean=tmp_path, model_name="fake/model", refit=True, min_cluster_size=10,
+                reducer=lambda x: x)
+    return cluster
+
+
+def test_cluster_fits_assigns_and_keeps_fit(tmp_path: Path):
+    ids, texts, vecs = _themed_corpus(tmp_path)
+    cluster = _fit_cluster(tmp_path)
+    out = tmp_path / "clusters"
+    cl = pq.read_table(out / "clusters.parquet").to_pylist()
+    a = {r["narrative_id"]: r["cluster_id"]
+         for r in pq.read_table(out / "assignments.parquet").to_pylist()}
+    assert len(cl) == 2
+    assert a["stray"] == -1  # far from every centroid
+    for c in cl:
+        members = [i for i, v in a.items() if v == c["cluster_id"]]
+        theme = members[0][:2]
+        assert all(m.startswith(theme) for m in members) and len(members) >= 38
+        assert c["narratives"] == len(members) and c["complaints"] == len(members)
+        assert c["component_groups"] == ["SERVICE BRAKES" if theme == "n0" else "AIR BAGS"]
+        assert set(c["examples"]) <= set(members)
+        assert ("airbag" in c["terms"]) == (theme == "n1")
+        assert np.argmax(c["raw_centroid"]) == int(theme[1])  # the theme's own axis
+
+    # A new complaint arrives: a plain run assigns it to the existing fit without refitting.
+    fit_id = cl[0]["fit_id"]
+    narr = pq.read_table(tmp_path / "narratives.parquet").to_pylist()
+    pq.write_table(pa.Table.from_pylist(narr + [{"complaint_id": "c-new", "narrative_id": "new",
+                                                 "description": texts[0]}]),
+                   tmp_path / "narratives.parquet")
+    # "gone" is a vector whose text a scrub rule has since changed: it must be skipped.
+    _write_vectors(tmp_path, ids + ["new", "gone"], np.vstack([vecs, vecs[0], vecs[1]]))
+    cluster.run(clean=tmp_path, model_name="fake/model",
+                reducer=lambda x: pytest.fail("refit without --refit"))
+    a = {r["narrative_id"]: r["cluster_id"]
+         for r in pq.read_table(out / "assignments.parquet").to_pylist()}
+    assert a["new"] == a["n0-000"] and "gone" not in a
+    assert pq.read_table(out / "clusters.parquet").column("fit_id")[0].as_py() == fit_id
+
+
+class _FakeBatches:
+    """Stands in for client.messages.batches: answers each request after one poll."""
+
+    def __init__(self):
+        self.created, self.polls = [], 0
+
+    def create(self, requests):
+        self.created.append(requests)
+        return SimpleNamespace(id=f"batch-{len(self.created)}")
+
+    def retrieve(self, batch_id):
+        self.polls += 1
+        status = "ended" if self.polls % 2 == 0 else "in_progress"
+        return SimpleNamespace(processing_status=status,
+                               request_counts=SimpleNamespace(processing=1))
+
+    def results(self, batch_id):
+        for r in self.created[int(batch_id.split("-")[1]) - 1]:
+            if "AIRBAG" in r["params"]["messages"][0]["content"] and len(self.created) == 1:
+                yield SimpleNamespace(custom_id=r["custom_id"],
+                                      result=SimpleNamespace(type="errored"))
+                continue
+            body = {"name": f"Theme of {r['custom_id']}", "summary": "Owners report it.",
+                    "kind": "defect"}
+            msg = SimpleNamespace(stop_reason="end_turn",
+                                  content=[SimpleNamespace(type="text", text=json.dumps(body))])
+            yield SimpleNamespace(custom_id=r["custom_id"],
+                                  result=SimpleNamespace(type="succeeded", message=msg))
+
+
+class _FakeMessages:
+    """Stands in for client.messages: the batches above plus one theme-grouping request."""
+
+    def __init__(self):
+        self.batches, self.theme_requests = _FakeBatches(), []
+
+    def create(self, **params):
+        self.theme_requests.append(params)
+        body = {"groups": [{"cluster_ids": [1, 0], "name": "Both toy themes"}]}
+        return SimpleNamespace(stop_reason="end_turn",
+                               content=[SimpleNamespace(type="text", text=json.dumps(body))])
+
+
+def test_names_are_resumable_and_retry_failures(tmp_path: Path):
+    from pipeline import names
+
+    _themed_corpus(tmp_path)
+    _fit_cluster(tmp_path)
+    messages = _FakeMessages()
+    batches = messages.batches
+    client = SimpleNamespace(messages=messages)
+
+    names.run(clean=tmp_path, model="fake-model", wait=False, client=client)  # submit only
+    assert (tmp_path / "clusters" / "naming_batch.json").exists()
+    req = batches.created[0][0]
+    assert req["params"]["model"] == "fake-model"
+    assert "Sample narratives:\n1. " in req["params"]["messages"][0]["content"]
+    names.run(clean=tmp_path, model="fake-model", client=client, poll_seconds=0)  # same batch
+    assert len(batches.created) == 1
+    got = pq.read_table(tmp_path / "clusters" / "names.parquet").to_pylist()
+    assert len(got) == 1 and got[0]["kind"] == "defect"  # the airbag request failed
+    assert not messages.theme_requests  # themes wait until every cluster has a name
+
+    names.run(clean=tmp_path, model="fake-model", client=client, poll_seconds=0)
+    assert len(batches.created[1]) == 1  # only the failed cluster is asked again
+    got = pq.read_table(tmp_path / "clusters" / "names.parquet").to_pylist()
+    assert sorted(r["cluster_id"] for r in got) == [0, 1]
+    themes = pq.read_table(tmp_path / "clusters" / "themes.parquet").to_pylist()
+    assert [(t["theme_id"], t["theme_name"]) for t in themes] == [(0, "Both toy themes")] * 2
+    assert "Theme of cluster-1" in messages.theme_requests[0]["messages"][0]["content"]
+    names.run(clean=tmp_path, model="fake-model", client=client)  # nothing left to do
+    assert len(batches.created) == 2 and len(messages.theme_requests) == 1
+
+
+def test_theme_groups_ignore_bad_ids_and_repeats():
+    from pipeline.names import group_themes
+
+    names = [{"fit_id": "f", "cluster_id": i, "name": f"n{i}"} for i in range(5)]
+    groups = [{"cluster_ids": [3, 1, 99], "name": "A"},  # 99 does not exist
+              {"cluster_ids": [1, 2], "name": "B"},  # 1 is already in A: B has one member left
+              {"cluster_ids": [4, 4], "name": "C"}]  # a repeat is not a group
+    got = {t["cluster_id"]: (t["theme_id"], t["theme_name"]) for t in group_themes(names, groups)}
+    assert got == {0: (0, "n0"), 1: (1, "A"), 2: (2, "n2"), 3: (1, "A"), 4: (4, "n4")}
+
+
+def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
+    from pipeline import signals
+
+    # Cluster 0 = brakes (axis 0), cluster 1 = airbags (axis 1).
+    out = tmp_path / "clusters"
+    out.mkdir()
+    eye = np.eye(4, dtype=np.float32)
+    pq.write_table(pa.table({
+        "fit_id": ["f", "f"], "cluster_id": pa.array([0, 1], pa.int32()),
+        "raw_centroid": pa.FixedSizeListArray.from_arrays(pa.array(eye[:2].reshape(-1)), 4),
+    }), out / "clusters.parquet")
+    complaints, narratives, assignments = [], [], []
+
+    def complain(make, model, year, cluster, when):
+        i = str(len(complaints))
+        complaints.append({"complaint_id": i, "odi_number": i, "make": make, "model": model,
+                           "model_year": year, "received_date": when})
+        narratives.append({"complaint_id": i, "narrative_id": f"n{i}"})
+        assignments.append({"narrative_id": f"n{i}", "cluster_id": cluster})
+
+    for m in range(1, 11):  # the F-150 files brake complaints all year
+        complain("FORD", "F-150", 2020, 0, date(2020, m, 5))
+    for v in ("CIVIC", "ACCORD", "CR-V", "PILOT"):  # everyone else mostly complains of airbags
+        for m in range(1, 13):
+            complain("HONDA", v, 2019, 1, date(2020, m, 9))
+        complain("HONDA", v, 2019, 0, date(2020, 6, 9))
+    complain("HONDA", "CIVIC", 2019, 1, date(2026, 1, 1))  # makes 2026 the last month of data
+    pq.write_table(pa.Table.from_pylist(complaints), tmp_path / "complaints.parquet")
+    pq.write_table(pa.Table.from_pylist(narratives), tmp_path / "narratives.parquet")
+    pq.write_table(pa.Table.from_pylist(assignments), out / "assignments.parquet")
+    pq.write_table(pa.table({
+        "campaign_id": ["21V001000", "19V002000"],
+        "defect_summary": ["THE BRAKE HOSE MAY LEAK.", "THE AIRBAG INFLATOR MAY RUPTURE."],
+    }), tmp_path / "recall_timeline.parquet")
+    pq.write_table(pa.table({
+        "campaign_id": ["21V001000", "19V002000"], "make": ["FORD", "HONDA"],
+        "model": ["F-150", "CIVIC"], "model_year": [2020, 2019],
+        "report_date": [date(2021, 6, 1), date(2019, 3, 1)],
+    }), tmp_path / "recalls.parquet")
+
+    def fake_encode(texts):
+        return np.array([eye[0] if "BRAKE" in t else eye[1] for t in texts])
+
+    signals.run(clean=tmp_path, model_name="fake/model", encode=fake_encode)
+    sig = {(r["model"], r["theme_id"]): r for r in pq.read_table(
+        tmp_path / "signals" / "signals.parquet").to_pylist()}
+    f150 = sig[("F-150", 0)]
+    assert f150["onset_month"] == date(2020, 3, 1)  # the third complaint, PRR far above 2
+    assert f150["recall_campaign"] == "21V001000" and f150["lead_months"] == 15
+    assert f150["complaints_before_recall"] == 10 and not f150["active"]  # quiet since 2020
+    assert sig[("CIVIC", 1)]["onset_month"] is None  # same share as everyone else
+    assert sig[("CIVIC", 1)]["recalled_before_complaints"]  # recalled in 2019, before them
+    assert sig[("CIVIC", 0)]["recall_campaign"] is None  # the airbag recall is not a brake one
+    matches = pq.read_table(tmp_path / "signals" / "recall_themes.parquet").to_pylist()
+    assert {(m["campaign_id"], m["cluster_id"]) for m in matches} == {
+        ("21V001000", 0), ("19V002000", 1)}
+    bt = json.loads((tmp_path / "signals" / "backtest.json").read_text())
+    assert bt["share flagged before the recall"] == 1.0
+    assert bt["median months flagged ahead of the recall"] == 15
+
+    calls = []
+    signals.run(clean=tmp_path, model_name="fake/model",
+                encode=lambda t: calls.append(t) or fake_encode(t))
+    assert calls == []  # recall vectors come from the cache

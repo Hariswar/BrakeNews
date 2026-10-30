@@ -4,11 +4,15 @@ NHTSA keeps complainants' names and contact details out of its public file and r
 the text as [XXX], but the redaction misses things. Profiling the October 2026 files found e-mail
 addresses, phone numbers, full VINs, links to personal photo albums, case and claim numbers that
 tie a complaint to a person, and names after titles ("MR. ..."). Each is replaced with a typed
-placeholder such as [PHONE]. NHTSA reviewer codes (*AK, *JB), on 45% of narratives, are dropped.
+placeholder such as [PHONE]. NHTSA reviewer codes, at the end (*AK, *JB: 45% of narratives) or
+the start ("TL* THE CONTACT OWNS", "DT*:": 13%), are dropped; left in, the start codes alone were
+enough to pull narratives about unrelated failures into one cluster.
 
-Names without a title or "my name is" (a signature such as "JOHN SMITH 555-0100" loses the phone
-number but keeps the name) cannot be found by pattern, so the text is safer than NHTSA's file but
-not guaranteed to be name-free.
+Names are also masked in sign-offs at the end of a narrative ("THANKS, EDUARDO", "SINCERELY, CLARA
+JOHNSON": about 1 narrative in 800), and street addresses and ZIP codes wherever they appear
+("7900 EASTERN AVE, BALTIMORE, MD [ZIP]": 2%, mostly dealerships, but text cannot tell a dealer
+from a home). A name with no title, sign-off or "my name is" in front of it still cannot be found
+by pattern, so the text is safer than NHTSA's file but not guaranteed to be name-free.
 
 Output: one row per complaint row with text
   complaint_id   joins to complaints.parquet
@@ -31,6 +35,8 @@ _I = re.IGNORECASE
 _URL = re.compile(r"(?:https?://|\bwww\.)[^\s<>\"]*[^\s<>\".,;:!?)\]'*]", _I)
 _EMAIL = re.compile(r"[A-Z0-9._%+-]+@[A-Z0-9-]+(?:\.[A-Z0-9-]+)*\.[A-Z]{2,}", _I)
 # Reviewer initials such as "*AK" or ".*DT*AK", but not emphasis like "did *NOT* deploy".
+# At the start, letters then stars: "TL* THE CONTACT", "DT*: THE CONTACT", "TLA*THE CONTACT".
+_LEADING_STAFF_CODE = re.compile(r"^[A-Z]{2,3}\*{1,2}:?\s*")
 _STAFF_CODE = re.compile(r"(?<![A-Za-z0-9])(?:\*{1,3}(?!NO\b)[A-Z]{2,3})+(?=\s|$|[.,;:])")
 # Full VIN: check digit (or X) in position 9 and digits in the last three positions.
 _VIN = re.compile(r"\b[A-HJ-NPR-Z0-9]{8}[0-9X][A-HJ-NPR-Z0-9]{5}[0-9]{3}\b", _I)
@@ -86,7 +92,32 @@ _ADDRESS = re.compile(
     r"\bRESIDE\s+AT\s+)\d[\w-]*(?:\s+(?!(?:AND|BUT|THE|WHEN|WHERE|WHICH|WITH|THAT|SO|I|WE|MY)\b)"
     r"[A-Z0-9.'#-]+){1,5}", _I)
 _ZIP = re.compile(r"(\bZIP(?:\s*CODE)?\s*[:#]?\s*)\d{5}(?:-\d{4})?\b", _I)
+# "1234 N OAK ST," / "7900 EASTERN AVE." / "P.O. BOX 8234": a number, one to four words and a
+# street type, then a separator. The words are checked in _street so "45 MILES DOWN THE ROAD,"
+# and "4 WHEEL DRIVE," are left alone.
+_STREET = re.compile(
+    r"\b\d{1,6}\s+((?:[NSEW]\.?\s+)?(?:[A-Z0-9'.-]+\s+){1,4})(?:ST|STREET|AVE|AVENUE|RD|ROAD|DR|"
+    r"DRIVE|BLVD|BOULEVARD|LN|LANE|CT|COURT|WAY|PKWY|PARKWAY|CIR|CIRCLE|PL|PLACE|TER|TERRACE|TRL|"
+    r"TRAIL|HWY|HIGHWAY|TPKE|TURNPIKE)\b\.?(?=\s*(?:[,;#)]|APT\b|SUITE\b|STE\b|UNIT\b|$))"
+    r"|\bP\.?\s?O\.?\s+BOX\s+\d+", _I)
+_NOT_STREET_WORDS = frozenset("""
+    MILE MILES MPH KM WHEEL WHEELS DOOR DOORS SPEED YEAR YEARS MONTH MONTHS DAY DAYS TIMES
+    A AN THE MY OUR HIS HER THEIR OF ON OFF DOWN UP TO AT IN INTO AND OR FOR WITH FROM BY ONTO
+""".split())
+# ", MI 48912" after a city: the state code says the five digits are a ZIP, not a mileage.
+_STATE_ZIP = re.compile(r"(,\s*[A-Z]{2}\.?,?\s+)\d{5}(?:-\d{4})?\b")
+# A sign-off near the end of the text and the one to three words after it. THANK YOU and THANKS
+# are sign-offs anywhere; SINCERELY and the like only after a sentence end or before a comma,
+# so "SINCERELY HOPE" and "IS RESPECTFULLY REQUESTED" are not.
+_SIGNOFF = re.compile(
+    r"(?P<lead>^|[.!?,;:)\]]\s*|\s)(?P<word>THANK YOU|THANKS|SINCERELY(?: YOURS)?|"
+    r"(?:BEST |KIND |WARM )?REGARDS|RESPECTFULLY(?: YOURS)?|CORDIALLY)(?P<sep>[\s,.!:-]*)"
+    r"(?P<name>(?:[A-Z][A-Z'.-]*\s*){1,3}?)(?P<end>[.!]*\s*)$", _I)
+_NOT_SIGNOFF_NAMES = frozenset("""
+    PEOPLE FOLKS GUYS EVERYONE ALL ALOT AGAIN ADVANCE GOD NHTSA YOURS REQUESTED MUCH KINDLY
+""".split())
 _SPACES = re.compile(r"\s+")
+PLACEHOLDERS = ("NAME", "PHONE", "EMAIL", "ADDRESS", "ZIP", "VIN", "PLATE", "ID", "NUMBER", "URL")
 
 
 def _phone_after(m: re.Match) -> str:
@@ -97,6 +128,24 @@ def _phone_after(m: re.Match) -> str:
 def _long_number(m: re.Match) -> str:
     keep = _KEEP_NUMBER_AFTER.search(m.string, max(0, m.start() - 40), m.start())
     return m.group(0) if keep else "[NUMBER]"
+
+
+def _street(m: re.Match) -> str:
+    words = (m.group(1) or "").upper().split()
+    return m.group(0) if set(words) & _NOT_STREET_WORDS else "[ADDRESS]"
+
+
+def _signoff(m: re.Match) -> str:
+    word, name = m.group("word").upper(), m.group("name")
+    first = name.split()[0].rstrip(".").upper()
+    formal = not word.startswith("THANK")
+    if formal and not (m.group("lead").strip() or "," in m.group("sep")):
+        return m.group(0)
+    if first in _NOT_NAMES or first in _NOT_SIGNOFF_NAMES:
+        return m.group(0)
+    last = name.split()[-1]
+    period = "." if last.endswith(".") and len(last) > 2 else ""  # "SHARON." ends a sentence
+    return f"{m.group('lead')}{m.group('word')}{m.group('sep')}[NAME]{period}{m.group('end')}"
 
 
 def _is_name_word(word: str, position: int, capitalized: bool) -> bool:
@@ -145,7 +194,7 @@ def scrub(text: str) -> str:
     if "@" in text:
         text = _EMAIL.sub("[EMAIL]", text)
     if "*" in text:
-        text = _STAFF_CODE.sub("", text)
+        text = _STAFF_CODE.sub("", _LEADING_STAFF_CODE.sub("", text))
     text = _VIN.sub("[VIN]", text)
     if "vin" in low:
         text = _VIN_AFTER.sub(r"\1[VIN]", text)
@@ -164,6 +213,10 @@ def scrub(text: str) -> str:
         text = _ADDRESS.sub(r"\1[ADDRESS]", text)
     if "zip" in low:
         text = _ZIP.sub(r"\1[ZIP]", text)
+    text = _STREET.sub(_street, text)
+    text = _STATE_ZIP.sub(r"\1[ZIP]", text)
+    if any(k in low[-120:] for k in ("thank", "sincerely", "regards", "respectfully", "cordially")):
+        text = _SIGNOFF.sub(_signoff, text.rstrip())
     return _SPACES.sub(" ", text).strip()
 
 
@@ -192,3 +245,8 @@ def run(clean: Path = CLEAN) -> None:
     n, texts = con.execute(
         f"SELECT count(*), count(DISTINCT narrative_id) FROM '{out.as_posix()}'").fetchone()
     print(f"[scrub] narratives: {n:,} rows, {texts:,} distinct texts")
+    counts = con.execute(f"""
+        SELECT {", ".join(f"count(*) FILTER (description LIKE '%[{p}]%')" for p in PLACEHOLDERS)}
+        FROM (SELECT DISTINCT narrative_id, description FROM '{out.as_posix()}')""").fetchone()
+    print("[scrub] texts with a masked " + ", ".join(
+        f"{p.lower()}: {c:,}" for p, c in zip(PLACEHOLDERS, counts, strict=True)))

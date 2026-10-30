@@ -98,3 +98,7 @@ SOURCES = (
     Source("recalls_pre_2010", f"{NHTSA_FFDD}/rcl/FLAT_RCL_PRE_2010.zip", RECALL_COLUMNS),
     Source("recalls_post_2010", f"{NHTSA_FFDD}/rcl/FLAT_RCL_POST_2010.zip", RECALL_COLUMNS),
 )
+
+# Claude model that names complaint clusters (Phase 2). A few hundred short labelling requests
+# through the Batch API: Haiku is accurate enough and costs well under a dollar per run.
+NAMING_MODEL = "claude-haiku-5-5"
