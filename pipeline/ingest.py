@@ -55,14 +55,19 @@ def download(source: Source, force: bool = False) -> dict:
 
 def tsv_to_parquet(con: duckdb.DuckDBPyConnection, txt: Path, columns: tuple[str, ...],
                    out: Path) -> int:
-    """Read an NHTSA tab-delimited file (no header, no quoting) into Parquet, all VARCHAR."""
+    """Read an NHTSA tab-delimited file (no header, no quoting) into Parquet, all VARCHAR.
+
+    A line with the wrong number of fields (e.g. a narrative split by a stray newline) raises an
+    error naming the line instead of being silently padded with NULLs. Blank lines, which the
+    recall files contain, are skipped.
+    """
     cols = "{" + ", ".join(f"'{c}': 'VARCHAR'" for c in columns) + "}"
     con.execute(f"""
         COPY (
             SELECT * FROM read_csv(
                 '{txt.as_posix()}',
                 delim = '\t', header = false, quote = '', escape = '',
-                columns = {cols}, null_padding = true, encoding = 'utf-8',
+                columns = {cols}, null_padding = false, encoding = 'utf-8',
                 max_line_size = 1048576
             )
         ) TO '{out.as_posix()}' (FORMAT parquet, COMPRESSION zstd)

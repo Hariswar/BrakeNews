@@ -48,6 +48,46 @@ COMPLAINT_PII_COLUMNS = (
     "CITY", "VIN", "DEALER_NAME", "DEALER_TEL", "DEALER_CITY", "DEALER_ZIP", "VEHICLE_OPERATOR",
 )
 
+# USPS codes: states, DC, territories, freely associated states and military mail. Other values
+# in the complaint STATE field ('00', 'UN', '??', single letters) become NULL.
+US_STATE_CODES = (
+    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA",
+    "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
+    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT",
+    "VA", "WA", "WV", "WI", "WY", "DC", "PR", "VI", "GU", "AS", "MP", "FM", "MH", "PW", "AA",
+    "AE", "AP",
+)
+
+# NHTSA names components two ways at once: the consumer complaint form uses flat names ("ENGINE",
+# "SERVICE BRAKES") while older complaints and most recalls use a detailed hierarchy
+# ("ENGINE AND ENGINE COOLING:COOLING SYSTEM", "SERVICE BRAKES, HYDRAULIC:..."). component_group
+# maps both onto one set of names so complaints and recalls line up; the full path stays in
+# `component`.
+COMPONENT_GROUP_ALIASES = {
+    "ENGINE AND ENGINE COOLING": "ENGINE",
+    "SERVICE BRAKES, HYDRAULIC": "SERVICE BRAKES",
+    "SERVICE BRAKES, AIR": "SERVICE BRAKES",
+    "SERVICE BRAKES, ELECTRIC": "SERVICE BRAKES",
+    "SERVICE BRAKES, HYDRAULIC; AUTOHOLD BRAKE SYSTEM/BRAKE HOLD": "SERVICE BRAKES",
+    "FUEL SYSTEM, GASOLINE": "FUEL/PROPULSION SYSTEM",
+    "FUEL SYSTEM, DIESEL": "FUEL/PROPULSION SYSTEM",
+    "FUEL SYSTEM, OTHER": "FUEL/PROPULSION SYSTEM",
+    "HYBRID PROPULSION SYSTEM": "FUEL/PROPULSION SYSTEM",
+    "VISIBILITY/WIPER": "VISIBILITY",
+    "ELECTRONIC STABILITY CONTROL": "ELECTRONIC STABILITY CONTROL (ESC)",
+    "COMMUNICATIONS": "COMMUNICATION",
+    "TRAILER HARDWARE": "TRAILER HITCHES",
+    "CARRY HANDLE, SHELL, BASE": "CHILD SEAT",
+    "CHEST CLIP, BUCKLE, HARNESS": "CHILD SEAT",
+    "INSERT, PADDING": "CHILD SEAT",
+    "TETHER, LOWER ANCHOR (ON CAR SEAT OR VEHICLE)": "CHILD SEAT",
+    "I SUSPECT THE CAR SEAT IS COUNTERFEIT": "CHILD SEAT",
+    "OTHER": "UNKNOWN OR OTHER",
+    "OTHER/I AM NOT SURE": "UNKNOWN OR OTHER",
+    "OTHER/UNKNOWN": "UNKNOWN OR OTHER",
+    "NONE": "UNKNOWN OR OTHER",
+}
+
 SOURCES = (
     Source("complaints", f"{NHTSA_FFDD}/cmpl/FLAT_CMPL.zip", COMPLAINT_COLUMNS),
     # NHTSA no longer posts a single FLAT_RCL.zip; recalls are split at 2010.
