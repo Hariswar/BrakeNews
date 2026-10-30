@@ -62,7 +62,7 @@ def tsv_to_parquet(con: duckdb.DuckDBPyConnection, txt: Path, columns: tuple[str
             SELECT * FROM read_csv(
                 '{txt.as_posix()}',
                 delim = '\t', header = false, quote = '', escape = '',
-                columns = {cols}, null_padding = true, encoding = 'latin-1',
+                columns = {cols}, null_padding = true, encoding = 'utf-8',
                 max_line_size = 1048576
             )
         ) TO '{out.as_posix()}' (FORMAT parquet, COMPRESSION zstd)
@@ -93,8 +93,10 @@ def run(force: bool = False) -> None:
         zpath = RAW / f"{source.name}.zip"
         entry["bytes"] = zpath.stat().st_size
         entry["sha256"] = sha256(zpath)
+        # Save download metadata before converting, so a failed conversion doesn't lose it.
+        manifest[source.name] = entry
+        MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
         print(f"[ingest] {source.name}: converting to Parquet")
         entry["rows"] = zip_to_parquet(con, source)
-        manifest[source.name] = entry
+        MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")
         print(f"[ingest] {source.name}: {entry['rows']:,} rows")
-    MANIFEST.write_text(json.dumps(manifest, indent=2) + "\n")

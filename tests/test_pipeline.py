@@ -29,7 +29,7 @@ def test_ingest_and_clean_roundtrip(tmp_path: Path):
     )
     tire = {**complaint, "CMPLID": "2", "PROD_TYPE": "T"}
     lines = [_row(COMPLAINT_COLUMNS, **complaint)] * 2 + [_row(COMPLAINT_COLUMNS, **tire)]
-    (tmp_path / "c.txt").write_text("\n".join(lines) + "\n", encoding="latin-1")
+    (tmp_path / "c.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     tsv_to_parquet(con, tmp_path / "c.txt", COMPLAINT_COLUMNS, raw / "complaints.parquet")
 
     recall = dict(
