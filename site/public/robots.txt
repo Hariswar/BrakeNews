@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://brakenews.pages.dev/sitemap-index.xml

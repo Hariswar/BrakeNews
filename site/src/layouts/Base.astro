@@ -1,0 +1,37 @@
+---
+import Disclaimer from "../components/Disclaimer.astro";
+
+interface Props {
+  title: string;
+  description: string;
+}
+const { title, description } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="sitemap" href="/sitemap-index.xml" />
+  </head>
+  <body>
+    <header><a href="/">BrakeNews</a></header>
+    <main>
+      <slot />
+    </main>
+    <Disclaimer />
+  </body>
+</html>
+
+<style is:global>
+  body {
+    max-width: 48rem;
+    margin: 0 auto;
+    padding: 1rem;
+    font-family: system-ui, sans-serif;
+    line-height: 1.5;
+  }
+</style>

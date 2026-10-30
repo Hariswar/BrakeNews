@@ -1,0 +1,30 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+.ipynb_checkpoints/
+
+# Data and artifacts (rebuilt by `make build`)
+data/raw/*
+data/clean/*
+!data/raw/.gitkeep
+!data/clean/.gitkeep
+models/*
+!models/.gitkeep
+mlruns/
+mlartifacts/
+
+# Secrets
+.env
+
+# Site
+site/node_modules/
+site/dist/
+site/.astro/
+
+# OS / editors
+.DS_Store
+.vscode/
