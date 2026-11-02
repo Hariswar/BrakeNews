@@ -15,6 +15,10 @@ Features, all as of the row's month:
                     (last three months and the three before), growth = (k3 + 1) / (k3_prev + 1)
   disproportion     prr, chi2, signal (the signals.py rule), signal_months (months signalled so
                     far), vehicle_total and theme_total (window), share (a / vehicle_total)
+  surge             (surge.py) vehicle_k3 (the vehicle's complaints in the last three months),
+                    expected3, surge_ratio = (k3 + 0.5) / (expected3 + 0.5), surge_logp
+                    (-log10 of the binomial p-value), surge (the flag), surge_months (months
+                    surged so far)
   severity          shares of the window's complaints with a crash, fire, injury, death or tow
   age               vehicle_age (years since the model year), months_active (since the
                     pair's first complaint)
@@ -36,6 +40,7 @@ HORIZON_MONTHS = 24
 
 FEATURES = (
     "k", "a", "cum", "k3", "k3_prev", "growth", "prr", "chi2", "signal", "signal_months",
+    "vehicle_k3", "expected3", "surge_ratio", "surge_logp", "surge", "surge_months",
     "vehicle_total", "theme_total", "share", "crash_share", "fire_share", "injury_share",
     "death_share", "towed_share", "vehicle_age", "months_active", "sibling_signals",
     "theme_recalls", "make_recalls_5y", "make", "theme_id",
@@ -58,6 +63,9 @@ def build(con, last_mi: int, recalls: str, out: Path) -> None:
         ),
         m AS (
             SELECT mo.*, s.crash, s.fire, s.injury, s.death, s.towed,
+                   sg.nv3 AS vehicle_k3, sg.expected3, sg.surge_p, sg.surge::INT AS surge,
+                   sum(sg.surge::INT) OVER (pair ORDER BY mo.mi ROWS UNBOUNDED PRECEDING)
+                       AS surge_months,
                    min(mo.mi) OVER pair_all AS first_mi,
                    sum(mo.k) OVER (pair ORDER BY mo.mi RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
                        AS k3,
@@ -74,6 +82,7 @@ def build(con, last_mi: int, recalls: str, out: Path) -> None:
                                              RANGE BETWEEN {w} PRECEDING AND CURRENT ROW)
                        - sum(mo.signal::INT) OVER win AS sibling_signals
             FROM monthly mo JOIN sev s USING (make, model, model_year, theme_id, mi)
+            JOIN surge sg USING (make, model, model_year, theme_id, mi)
             WINDOW pair AS (PARTITION BY mo.make, mo.model, mo.model_year, mo.theme_id),
                    pair_all AS (PARTITION BY mo.make, mo.model, mo.model_year, mo.theme_id),
                    win AS (PARTITION BY mo.make, mo.model, mo.model_year, mo.theme_id
@@ -98,6 +107,8 @@ def build(con, last_mi: int, recalls: str, out: Path) -> None:
                make_date((m.mi // 12)::INT, (m.mi % 12 + 1)::INT, 1) AS month, m.mi,
                m.k, m.a, m.cum, m.k3, m.k3_prev, (m.k3 + 1) / (m.k3_prev + 1) AS growth,
                m.prr, m.chi2, m.signal::INT AS signal, m.signal_months,
+               m.vehicle_k3, m.expected3, (m.k3 + 0.5) / (m.expected3 + 0.5) AS surge_ratio,
+               -log10(greatest(m.surge_p, 1e-300)) AS surge_logp, m.surge, m.surge_months,
                m.nv AS vehicle_total, m.ct AS theme_total, m.a / m.nv AS share,
                m.crash_w / m.a AS crash_share, m.fire_w / m.a AS fire_share,
                m.injury_w / m.a AS injury_share, m.death_w / m.a AS death_share,

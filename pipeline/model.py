@@ -8,6 +8,21 @@ would already know about a recall inside the later block.
     train  ...........  gap  validation (3 years)  gap  test (4 years) = last labelled months
 Validation picks the number of boosting rounds (early stopping); the test block is scored once.
 
+Choosing features and parameters (`make select`). One validation block is a noisy judge: three
+years of one era. So candidates are compared on SELECTION_FOLDS earlier folds instead, each the
+same train / gap / validation / gap / test layout shifted back in steps of TEST_MONTHS, the
+latest ending where the main validation block ends. No fold's labels reach into the final test
+block. The candidate with the best mean average precision over the folds' test blocks wins
+(ties: fewer features). The result is fixed below as MODEL_FEATURES and PARAMS, so `make model`
+does not depend on a previous run; `make select` says if a rerun disagrees.
+
+Selection result (2026-11-01, selection.json): dropping the identity features `make` and
+`theme_id` won. They let the model memorise how often each make and theme was recalled in the
+training era, which drifts (validation AUC 0.75, test 0.66 with them); theme_recalls and
+make_recalls_5y carry the same information, counted as of each row's month. The surge features
+(surge.py) did not add to the model on these folds, though a surge is a useful alert by itself
+(signals.py backtest); they stay in the training table for comparison.
+
 The baseline is the signals.py rule (3+ complaints, PRR >= 2, chi-square >= 4). The headline
 comparison holds the alert volume fixed: if analysts can review as many alerts as the rule
 raises, how many of those alerts does each method spend on pairs that are then recalled?
@@ -23,7 +38,8 @@ folder store); browse with `mlflow ui --backend-store-uri sqlite:///mlruns/mlflo
 Outputs:
   models/recall_risk.txt                the final LightGBM model
   data/clean/model/metrics.json         validation and test metrics, baselines, importance
-  data/clean/model/risk_scores.parquet  current pairs with their risk score
+  data/clean/model/risk_scores.parquet  current pairs with their risk score and surge state
+  data/clean/model/selection.json       `make select`: every candidate's fold metrics
 """
 
 from __future__ import annotations
@@ -40,13 +56,28 @@ from pipeline.signals import WINDOW_MONTHS
 
 TEST_MONTHS = 48
 VALIDATION_MONTHS = 36
-PARAMS = {
-    "objective": "binary", "learning_rate": 0.05, "num_leaves": 31, "min_data_in_leaf": 200,
-    "feature_fraction": 0.8, "bagging_fraction": 0.8, "bagging_freq": 1, "lambda_l2": 1.0,
-    "seed": 0, "verbose": -1, "num_threads": 4,
+SELECTION_FOLDS = 3
+_COMMON = {"objective": "binary", "feature_fraction": 0.8, "bagging_fraction": 0.8,
+           "bagging_freq": 1, "lambda_l2": 1.0, "seed": 0, "verbose": -1, "num_threads": 4}
+PARAM_SETS = {
+    "fast": {**_COMMON, "learning_rate": 0.05, "num_leaves": 31, "min_data_in_leaf": 200},
+    "steady": {**_COMMON, "learning_rate": 0.02, "num_leaves": 15, "min_data_in_leaf": 500},
 }
 MAX_ROUNDS = 2000
-MODEL_FEATURES = FEATURES
+
+IDENTITY = ("make", "theme_id")
+SURGE = ("vehicle_k3", "expected3", "surge_ratio", "surge_logp", "surge", "surge_months")
+FEATURE_SETS = {
+    "all": FEATURES,
+    "no_surge": tuple(f for f in FEATURES if f not in SURGE),
+    "no_identity": tuple(f for f in FEATURES if f not in IDENTITY),
+    "no_identity_no_surge": tuple(f for f in FEATURES if f not in IDENTITY + SURGE),
+}
+# Chosen by `make select` (see the module docstring).
+MODEL_FEATURE_SET = "no_identity_no_surge"
+MODEL_PARAM_SET = "steady"
+MODEL_FEATURES = FEATURE_SETS[MODEL_FEATURE_SET]
+PARAMS = PARAM_SETS[MODEL_PARAM_SET]
 
 
 def splits(mi: pd.Series, last_labelled: int, test_months: int = TEST_MONTHS,
@@ -56,7 +87,15 @@ def splits(mi: pd.Series, last_labelled: int, test_months: int = TEST_MONTHS,
     val_end = test_start - gap - 1
     val_start = val_end - validation_months + 1
     return {"train": mi < val_start - gap, "validation": mi.between(val_start, val_end),
-            "test": mi >= test_start}
+            "test": mi.between(test_start, last_labelled)}
+
+
+def selection_ends(last_labelled: int, folds: int = SELECTION_FOLDS,
+                   test_months: int = TEST_MONTHS, gap: int = HORIZON_MONTHS) -> list[int]:
+    """Last month of each selection fold's test block, newest first: the newest ends where the
+    main validation block ends, so no fold label looks past the final test block's start."""
+    newest = last_labelled - test_months - gap
+    return [newest - i * test_months for i in range(folds)]
 
 
 def _frame(df: pd.DataFrame, categories: dict[str, list],
@@ -108,11 +147,56 @@ def _score_current(booster, df: pd.DataFrame, categories: dict, features: tuple[
     last_mi = int(df["mi"].max())
     latest = (df[df["mi"] > last_mi - WINDOW_MONTHS].sort_values("mi")
               .groupby(["make", "model", "model_year", "theme_id"], observed=True).tail(1))
-    scores = (latest[["make", "model", "model_year", "theme_id", "month", "a", "prr", "signal"]]
+    scores = (latest[["make", "model", "model_year", "theme_id", "month", "a", "prr", "signal",
+                      "k3", "expected3", "surge_logp", "surge"]]
               .assign(risk=booster.predict(_frame(latest, categories, features)))
               .sort_values("risk", ascending=False))
     scores.to_parquet(out / "risk_scores.parquet", index=False)
     return len(scores)
+
+
+def _fit(labelled: pd.DataFrame, last_labelled: int, categories: dict,
+         features: tuple[str, ...], params: dict, max_rounds: int, test_months: int,
+         validation_months: int) -> tuple:
+    """Train on one train / validation / test layout ending at last_labelled; early-stop on
+    validation and evaluate validation and test. Returns (booster, metrics)."""
+    import lightgbm as lgb  # pip install -e ".[model]"
+
+    parts = splits(labelled["mi"], last_labelled, test_months, validation_months)
+    sets = {name: labelled[mask] for name, mask in parts.items()}
+    for name, part in sets.items():
+        if part.empty or part["label"].nunique() < 2:
+            raise SystemExit(f"[model] the {name} block ending {last_labelled} has no positives "
+                             f"or no negatives")
+    cats = {c: v for c, v in categories.items() if c in features}
+
+    def dataset(part, reference=None):
+        return lgb.Dataset(_frame(part, cats, features), part["label"].astype(int),
+                           categorical_feature=list(cats), reference=reference,
+                           free_raw_data=False)
+
+    train = dataset(sets["train"])
+    booster = lgb.train(params, train, num_boost_round=max_rounds,
+                        valid_sets=[dataset(sets["validation"], train)],
+                        callbacks=[lgb.early_stopping(100, verbose=False)])
+    rounds = booster.best_iteration or max_rounds
+    metrics: dict = {"rounds": rounds}
+    for name in ("train", "validation", "test"):
+        metrics[f"{name}_months"] = (f"{str(sets[name]['month'].min())[:7]} to "
+                                     f"{str(sets[name]['month'].max())[:7]}")
+    for name in ("validation", "test"):
+        part = sets[name]
+        metrics[name] = evaluate(part["label"].to_numpy(int),
+                                 booster.predict(_frame(part, cats, features),
+                                                 num_iteration=rounds),
+                                 part["signal"].to_numpy(int), part["prr"].to_numpy())
+    return booster, metrics
+
+
+def _load(clean: Path) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    df = pd.read_parquet(clean / "model" / "training.parquet")
+    categories = {c: sorted(df[c].dropna().unique().tolist()) for c in CATEGORICAL}
+    return df, df[df["label"].notna()].reset_index(drop=True), categories
 
 
 def run(clean: Path = CLEAN, models_dir: Path = ROOT / "models",
@@ -122,42 +206,16 @@ def run(clean: Path = CLEAN, models_dir: Path = ROOT / "models",
         features: tuple[str, ...] = MODEL_FEATURES, final: bool = True) -> dict:
     """Train, evaluate on validation and test, log to MLflow. With final=False (for comparing
     variants) the retrain on all rows and the scoring of current pairs are skipped."""
-    import lightgbm as lgb  # pip install -e ".[model]"
+    import lightgbm as lgb
     import mlflow
 
     params = {**PARAMS, **(params or {})}
     out = clean / "model"
-    df = pd.read_parquet(out / "training.parquet")
-    categories = {c: sorted(df[c].dropna().unique().tolist())
-                  for c in CATEGORICAL if c in features}
-    labelled = df[df["label"].notna()].reset_index(drop=True)
-    parts = splits(labelled["mi"], int(labelled["mi"].max()), test_months, validation_months)
-    sets = {name: labelled[mask] for name, mask in parts.items()}
-    for name, part in sets.items():
-        if part.empty or part["label"].nunique() < 2:
-            raise SystemExit(f"[model] the {name} block has no positives or no negatives")
-
-    def dataset(part, reference=None):
-        return lgb.Dataset(_frame(part, categories, features), part["label"].astype(int),
-                           categorical_feature=list(categories), reference=reference,
-                           free_raw_data=False)
-
-    train = dataset(sets["train"])
-    booster = lgb.train(params, train, num_boost_round=max_rounds,
-                        valid_sets=[dataset(sets["validation"], train)],
-                        callbacks=[lgb.early_stopping(100, verbose=False)])
-    rounds = booster.best_iteration or max_rounds
-
-    metrics: dict = {"rounds": rounds}
-    for name in ("train", "validation", "test"):
-        metrics[f"{name}_months"] = (f"{str(sets[name]['month'].min())[:7]} to "
-                                     f"{str(sets[name]['month'].max())[:7]}")
-    for name in ("validation", "test"):
-        part = sets[name]
-        metrics[name] = evaluate(part["label"].to_numpy(int),
-                                 booster.predict(_frame(part, categories, features),
-                                                 num_iteration=rounds),
-                                 part["signal"].to_numpy(int), part["prr"].to_numpy())
+    df, labelled, categories = _load(clean)
+    booster, metrics = _fit(labelled, int(labelled["mi"].max()), categories, features, params,
+                            max_rounds, test_months, validation_months)
+    rounds = metrics["rounds"]
+    metrics["features"] = list(features)
     gain = booster.feature_importance("gain", iteration=rounds)
     metrics["feature_importance"] = {
         f: round(float(g / max(gain.sum(), 1e-9)), 4)
@@ -172,8 +230,12 @@ def run(clean: Path = CLEAN, models_dir: Path = ROOT / "models",
             mlflow.log_metrics({f"{name}_{k}": v for k, v in metrics[name].items()
                                 if isinstance(v, int | float)})
         if final:
-            metrics["scored_pairs"] = _score_current(lgb.train(
-                params, dataset(labelled), num_boost_round=rounds), df, categories, features,
+            cats = {c: v for c, v in categories.items() if c in features}
+            everything = lgb.Dataset(_frame(labelled, cats, features),
+                                     labelled["label"].astype(int),
+                                     categorical_feature=list(cats))
+            metrics["scored_pairs"] = _score_current(
+                lgb.train(params, everything, num_boost_round=rounds), df, cats, features,
                 models_dir, out)
             (out / "metrics.json").write_text(json.dumps(metrics, indent=2, default=str) + "\n")
             mlflow.log_artifact(str(out / "metrics.json"))
@@ -193,3 +255,60 @@ def run(clean: Path = CLEAN, models_dir: Path = ROOT / "models",
         print(f"[model] scored {metrics['scored_pairs']:,} current pairs -> "
               f"{out / 'risk_scores.parquet'}")
     return metrics
+
+
+def select(clean: Path = CLEAN, runs_dir: Path = ROOT / "mlruns",
+           feature_sets: dict[str, tuple[str, ...]] | None = None,
+           param_sets: dict[str, dict] | None = None, folds: int = SELECTION_FOLDS,
+           max_rounds: int = MAX_ROUNDS, test_months: int = TEST_MONTHS,
+           validation_months: int = VALIDATION_MONTHS) -> dict:
+    """Compare every feature set x parameter set on the selection folds (never the final test
+    block); write selection.json and log each fold to MLflow. Returns the summary."""
+    import mlflow
+
+    feature_sets = feature_sets or FEATURE_SETS
+    param_sets = param_sets or PARAM_SETS
+    df, labelled, categories = _load(clean)
+    del df
+    ends = selection_ends(int(labelled["mi"].max()), folds, test_months)
+    _track(runs_dir, "recall-risk-selection")
+    results = []
+    for fname, features in feature_sets.items():
+        for pname, params in param_sets.items():
+            fold_metrics = []
+            for end in ends:
+                _, m = _fit(labelled, end, categories, features, params, max_rounds,
+                            test_months, validation_months)
+                fold_metrics.append({"test_months": m["test_months"], "rounds": m["rounds"],
+                                     **{k: m["test"][k] for k in (
+                                         "average_precision", "roc_auc", "base_rate",
+                                         "prr_average_precision",
+                                         "model_precision_at_rule_volume", "rule_precision")}})
+                with mlflow.start_run(run_name=f"{fname}/{pname}/{m['test_months']}"):
+                    mlflow.log_params({**params, "feature_set": fname, "param_set": pname,
+                                       "fold_test_months": m["test_months"],
+                                       "rounds": m["rounds"]})
+                    mlflow.log_metrics({f"test_{k}": v for k, v in m["test"].items()
+                                        if isinstance(v, int | float)})
+            results.append({
+                "feature_set": fname, "param_set": pname, "n_features": len(features),
+                "mean_average_precision": float(np.mean(
+                    [f["average_precision"] for f in fold_metrics])),
+                "mean_roc_auc": float(np.mean([f["roc_auc"] for f in fold_metrics])),
+                "folds": fold_metrics})
+            r = results[-1]
+            print(f"[select] {fname:22s} {pname:7s} mean AP {r['mean_average_precision']:.4f} "
+                  f"AUC {r['mean_roc_auc']:.3f}  (" + ", ".join(
+                      f"{f['average_precision']:.4f}" for f in fold_metrics) + ")", flush=True)
+    results.sort(key=lambda r: (-round(r["mean_average_precision"], 4), r["n_features"]))
+    best = results[0]
+    summary = {"winner": {"feature_set": best["feature_set"], "param_set": best["param_set"]},
+               "chosen_in_code": {"feature_set": MODEL_FEATURE_SET, "param_set": MODEL_PARAM_SET},
+               "fold_test_blocks": [f["test_months"] for f in best["folds"]],
+               "candidates": results}
+    (clean / "model" / "selection.json").write_text(json.dumps(summary, indent=2) + "\n")
+    print(f"[select] winner: {best['feature_set']} / {best['param_set']}")
+    if (best["feature_set"], best["param_set"]) != (MODEL_FEATURE_SET, MODEL_PARAM_SET):
+        print(f"[select] note: model.py trains {MODEL_FEATURE_SET} / {MODEL_PARAM_SET}; update "
+              f"MODEL_FEATURE_SET and MODEL_PARAM_SET to use the winner")
+    return summary

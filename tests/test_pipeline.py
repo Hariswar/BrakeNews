@@ -497,6 +497,12 @@ def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
     bt = json.loads((tmp_path / "signals" / "backtest.json").read_text())
     assert bt["share flagged before the recall"] == 1.0
     assert bt["median months flagged ahead of the recall"] == 15
+    # March 2020: three brake complaints out of the F-150's three, where the national brake
+    # share so far is 3 / 15 = 0.2: p = 0.2^3 = 0.008, q = 0.04 among March's five tests.
+    assert f150["surge_onset_month"] == date(2020, 3, 1) and not f150["surging"]
+    assert sig[("CIVIC", 1)]["surge_onset_month"] is None
+    assert bt["share of recalled pairs that surged before the recall"] == 1.0
+    assert bt["median months surged ahead of the recall"] == 15
 
     calls = []
     signals.run(clean=tmp_path, model_name="fake/model",
@@ -526,23 +532,45 @@ def test_features_use_only_the_past_and_label_the_horizon(tmp_path: Path):
     assert not [r for r in rows if r["model"] == "CIVIC" and r["theme_id"] == 1]
 
 
+def test_surge_compares_a_vehicle_with_its_own_past():
+    from pipeline.surge import fdr_by_month, surge_test
+
+    # History: 10 of 100 complaints about the theme. Recent: 10 of 20, or 2 of 20.
+    expected, p = surge_test(k3=[10, 2], nv3=[20, 20], hist_a=[10, 10], hist_n=[100, 100],
+                             theme_share=[0.1, 0.1])
+    assert np.allclose(expected, 2.0) and p[0] < 1e-4 and p[1] > 0.3
+    # No history: the expected share is the national one.
+    expected, _ = surge_test(k3=[1], nv3=[10], hist_a=[0], hist_n=[0], theme_share=[0.3])
+    assert np.isclose(expected[0], 3.0)
+    # A vehicle that always complained about the theme cannot surge on it.
+    _, p = surge_test(k3=[5], nv3=[5], hist_a=[500], hist_n=[500], theme_share=[0.1])
+    assert p[0] > 0.5
+
+    p = np.array([0.001, 0.02, 0.5, 0.001])
+    q = fdr_by_month(p, np.array([1, 1, 1, 2]))
+    assert np.all(q >= p) and q[3] == 0.001  # alone in its month: nothing to adjust for
+    assert np.isclose(q[0], 0.003) and np.isclose(q[1], 0.03)
+
+
 def test_model_splits_leave_a_horizon_gap():
-    from pipeline.model import splits
+    from pipeline.model import selection_ends, splits
 
     mi = pd.Series(range(0, 200))
     s = splits(mi, last_labelled=199, test_months=48, validation_months=36, gap=24)
     train, val, test = (mi[s[k]] for k in ("train", "validation", "test"))
     assert test.min() == 152 and test.max() == 199 and len(val) == 36
     assert test.min() - val.max() > 24 and val.min() - train.max() > 24
+    # A fold ending earlier has a bounded test block.
+    assert mi[splits(mi, 150, 48, 36, 24)["test"]].max() == 150
+    # Selection folds end where the main validation block ends, then step back.
+    assert selection_ends(199, folds=3, test_months=48, gap=24) == [127, 79, 31]
+    assert selection_ends(199, 1, 48, 24)[0] == val.max()
 
 
-def test_model_beats_the_rule_when_risk_is_learnable(tmp_path: Path):
-    pytest.importorskip("lightgbm")
-    pytest.importorskip("mlflow")
-    from pipeline import model
+def _learnable_training(tmp_path: Path) -> None:
+    """Recalls follow fires, whatever the PRR says; the rule only looks at the PRR."""
     from pipeline.features import FEATURES
 
-    # Recalls follow fires, whatever the PRR says; the rule only looks at the PRR.
     rng = np.random.default_rng(0)
     n = 30_000
     mi = rng.integers(24_000, 24_200, n)
@@ -550,12 +578,20 @@ def test_model_beats_the_rule_when_risk_is_learnable(tmp_path: Path):
     df = pd.DataFrame({f: rng.random(n) for f in FEATURES})
     df = df.assign(make=rng.choice(["FORD", "KIA"], n), theme_id=rng.integers(0, 5, n),
                    fire_share=fire, mi=mi, signal=(rng.random(n) < 0.3).astype(int),
-                   model="X", model_year=2020, month=pd.Timestamp("2020-01-01"),
+                   model="X", model_year=2020,
+                   month=pd.to_datetime({"year": mi // 12, "month": mi % 12 + 1, "day": 1}),
                    label=(rng.random(n) < np.where(fire > 0.9, 0.3, 0.01)).astype(float))
     df.loc[df["mi"] > 24_175, "label"] = np.nan  # the last 24 months have no label yet
     (tmp_path / "model").mkdir()
     df.to_parquet(tmp_path / "model" / "training.parquet")
 
+
+def test_model_beats_the_rule_when_risk_is_learnable(tmp_path: Path):
+    pytest.importorskip("lightgbm")
+    pytest.importorskip("mlflow")
+    from pipeline import model
+
+    _learnable_training(tmp_path)
     m = model.run(clean=tmp_path, models_dir=tmp_path / "models", runs_dir=tmp_path / "mlruns",
                   test_months=36, validation_months=24, max_rounds=200)
     t = m["test"]
@@ -566,3 +602,21 @@ def test_model_beats_the_rule_when_risk_is_learnable(tmp_path: Path):
     assert len(scores) and scores["risk"].is_monotonic_decreasing
     assert (tmp_path / "models" / "recall_risk.txt").exists()
     assert (tmp_path / "mlruns" / "mlflow.db").exists()
+
+
+def test_selection_prefers_the_features_that_carry_the_risk(tmp_path: Path):
+    pytest.importorskip("lightgbm")
+    pytest.importorskip("mlflow")
+    from pipeline import model
+
+    _learnable_training(tmp_path)
+    sel = model.select(clean=tmp_path, runs_dir=tmp_path / "mlruns",
+                       feature_sets={"with_fire": ("fire_share", "prr", "k3"),
+                                     "without_fire": ("prr", "k3")},
+                       param_sets={"fast": model.PARAM_SETS["fast"]}, folds=2,
+                       test_months=24, validation_months=24, max_rounds=200)
+    assert sel["winner"]["feature_set"] == "with_fire"
+    # Labels run to month 24175 (2014-08); the final test block is its last 24 months, from
+    # 2012-09. Each fold's test block ends a horizon before that, then 24 months earlier.
+    assert [t.split(" to ")[1] for t in sel["fold_test_blocks"]] == ["2010-08", "2008-08"]
+    assert json.loads((tmp_path / "model" / "selection.json").read_text())["candidates"]

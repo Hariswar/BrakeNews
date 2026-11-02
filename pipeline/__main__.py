@@ -42,6 +42,7 @@ def main() -> None:
     sg = sub.add_parser("signals", help="vehicle x theme early-warning signals and backtest")
     sg.add_argument("--model", default=EMBED_MODEL, help="embedding model for recall summaries")
     sub.add_parser("features", help="training table for the recall-risk model")
+    sub.add_parser("select", help="compare model feature and parameter sets on earlier folds")
     sub.add_parser("model", help="train, evaluate and score the recall-risk model")
     args = p.parse_args()
 
@@ -67,6 +68,8 @@ def main() -> None:
         signals.run(model_name=args.model)
     elif args.cmd == "features":
         features.run()
+    elif args.cmd == "select":
+        model.select()
     elif args.cmd == "model":
         model.run()
 

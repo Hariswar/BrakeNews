@@ -21,15 +21,22 @@ RECALL_MIN_SIM. A recall then covers a pair when it names the same make, model a
 and matches the pair's theme. This is much tighter than matching on NHTSA's component category
 ("ENGINE" covers dozens of unrelated themes).
 
-Backtest. For pairs a later recall covered, did the signal fire before the recall, and how
-early? For signals old enough to have been acted on, how often did a recall follow within
-FOLLOW_MONTHS, against pairs that reached the same complaint count without signalling? Neither
-number is a model score: recalls are not the only outcome of a real defect, and many follow
-manufacturer findings rather than complaints.
+Surge. A second, independent flag from surge.py: the vehicle's own complaints have shifted
+toward the theme in the last few months, beyond what its history predicts (binomial test,
+false discovery rate controlled per month). The PRR compares a vehicle with other vehicles; a
+surge compares it with its own past.
+
+Backtest. For pairs a later recall covered, did the signal (or a surge) fire before the recall,
+and how early? For signals old enough to have been acted on, how often did a recall follow
+within FOLLOW_MONTHS, against pairs that reached the same complaint count without signalling?
+The same for surges, and for signals with and without a surge. None of these numbers is a
+model score: recalls are not the only outcome of a real defect, and many follow manufacturer
+findings rather than complaints.
 
 Outputs:
   theme_monthly.parquet  complaints per vehicle x theme x month (for charts)
-  signals.parquet        one row per vehicle x theme: counts, onset, current window, recall
+  signals.parquet        one row per vehicle x theme: counts, onset, surge onset, current
+                         window and surge, recall
   recall_themes.parquet  campaign_id -> matched cluster_id, similarity
   backtest.json          the numbers above
 Recall-summary vectors are cached in data/clean/embeddings/<model>/recalls.parquet.
@@ -47,6 +54,7 @@ import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from pipeline import surge
 from pipeline.config import CLEAN, EMBED_MODEL
 from pipeline.embed import Encoder, load_encoder
 
@@ -169,6 +177,7 @@ def prepare(clean: Path, model_name: str, encode: Encoder | None,
                 crash / fire / injury / death / towed flags
       monthly   per vehicle x theme x month with a complaint: k (that month), a (window),
                 cum, nv, ct, n, prr, chi2, signal
+      surge     per row of monthly: k3, nv3, expected3, surge_p, surge_q, surge (surge.py)
       covering  recalls covering a vehicle x theme: campaign_id, recall_mi, report_date
     Returns the connection, the last month index of data and the recall-to-cluster matches."""
     con = duckdb.connect()
@@ -239,6 +248,7 @@ def prepare(clean: Path, model_name: str, encode: Encoder | None,
         FROM vt_r JOIN v_r USING (make, model, model_year, mi) JOIN t_r USING (theme_id, mi)
         JOIN g_r USING (mi)
     """)
+    surge.add(con)
     # Recalls covering each pair: same vehicle, matched to one of the theme's clusters.
     con.execute(f"""
         CREATE TEMP TABLE covering AS
@@ -289,8 +299,12 @@ def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | No
                 SELECT make, model, model_year, theme_id, sum(k) AS complaints,
                        min(mi) AS first_mi, max(mi) AS last_mi,
                        min(mi) FILTER (signal) AS onset_mi, max(prr) FILTER (signal) AS peak_prr,
-                       min(mi) FILTER (cum >= {MIN_COMPLAINTS}) AS reached_mi
-                FROM monthly GROUP BY ALL
+                       min(mi) FILTER (cum >= {MIN_COMPLAINTS}) AS reached_mi,
+                       min(mi) FILTER (surge) AS surge_onset_mi,
+                       arg_max(surge, mi) AS last_surge, arg_max(surge_q, mi) AS last_surge_q,
+                       arg_max(k3, mi) AS last_k3, arg_max(expected3, mi) AS last_expected3
+                FROM monthly JOIN surge USING (make, model, model_year, theme_id, mi)
+                GROUP BY ALL
             ),
             -- The first recall dated after the pair's first complaint, and whether one came
             -- earlier (then later complaints are about an already-recalled problem).
@@ -317,13 +331,25 @@ def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | No
                         make_date((onset_mi // 12)::INT, (onset_mi % 12 + 1)::INT, 1) END
                        AS onset_month,
                    p.peak_prr,
+                   CASE WHEN surge_onset_mi IS NOT NULL THEN
+                        make_date((surge_onset_mi // 12)::INT, (surge_onset_mi % 12 + 1)::INT, 1)
+                   END AS surge_onset_month,
                    coalesce(r.recent_complaints, 0) AS recent_complaints, r.recent_prr,
                    r.recent_chi2, coalesce(r.active, false) AS active,
+                   -- Surging now: the pair's latest complaint month is among the last
+                   -- SURGE_MONTHS months of data and it surged then.
+                   p.last_mi > {last_mi - surge.SURGE_MONTHS} AND p.last_surge AS surging,
+                   CASE WHEN p.last_mi > {last_mi - surge.SURGE_MONTHS} THEN p.last_k3 END
+                       AS recent_k3,
+                   CASE WHEN p.last_mi > {last_mi - surge.SURGE_MONTHS} THEN p.last_expected3 END
+                       AS recent_expected3,
+                   CASE WHEN p.last_mi > {last_mi - surge.SURGE_MONTHS} THEN p.last_surge_q END
+                       AS recent_surge_q,
                    rec.recall_campaign, rec.recall_date,
                    coalesce(rec.recalled_before_complaints, false) AS recalled_before_complaints,
                    coalesce(pre.complaints_before_recall, 0) AS complaints_before_recall,
                    rec.recall_mi - p.onset_mi AS lead_months,
-                   p.onset_mi, p.reached_mi, rec.recall_mi
+                   p.onset_mi, p.reached_mi, p.surge_onset_mi, rec.recall_mi
             FROM pairs p
             LEFT JOIN recent r USING (make, model, model_year, theme_id)
             LEFT JOIN rec USING (make, model, model_year, theme_id)
@@ -333,11 +359,12 @@ def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | No
     """)
     backtest = _backtest(con, (out / "signals.parquet").as_posix(), last_mi)
     (out / "backtest.json").write_text(json.dumps(backtest, indent=2) + "\n")
-    active = con.execute(f"SELECT count(*) FROM '{(out / 'signals.parquet').as_posix()}' "
-                         f"WHERE active AND recall_campaign IS NULL AND NOT "
-                         f"recalled_before_complaints").fetchone()[0]
+    active, surging = con.execute(
+        f"SELECT count(*) FILTER (active), count(*) FILTER (surging) "
+        f"FROM '{(out / 'signals.parquet').as_posix()}' "
+        f"WHERE recall_campaign IS NULL AND NOT recalled_before_complaints").fetchone()
     print(f"[signals] {matches.num_rows:,} recall-to-cluster matches; "
-          f"{active:,} active signals with no covering recall")
+          f"{active:,} active signals and {surging:,} surges with no covering recall")
     for k, v in backtest.items():
         print(f"[signals]   {k}: {v}")
 
@@ -363,6 +390,32 @@ def _backtest(con: duckdb.DuckDBPyConnection, signals: str, last_mi: int) -> dic
     """).fetchone()
     rate = flagged[1] / flagged[0] if flagged[0] else None
     base = unflagged[1] / unflagged[0] if unflagged[0] else None
+
+    surged = con.execute(f"""
+        SELECT count(*) FILTER (surge_onset_mi < recall_mi),
+               median(recall_mi - surge_onset_mi) FILTER (surge_onset_mi < recall_mi),
+               count(*) FILTER (surge_onset_mi < recall_mi OR onset_mi < recall_mi)
+        FROM {s} WHERE recall_mi IS NOT NULL AND complaints_before_recall >= {MIN_COMPLAINTS}
+    """).fetchone()
+
+    def followed(onset: str, where: str = "TRUE") -> tuple[int, float | None]:
+        n, hit = con.execute(f"""
+            SELECT count(*), count(*) FILTER (recall_mi > {onset}
+                                              AND recall_mi <= {onset} + {FOLLOW_MONTHS})
+            FROM {s} WHERE {onset} <= {cutoff} AND (recall_mi IS NULL OR recall_mi > {onset})
+              AND {where}
+        """).fetchone()
+        return n, (hit / n if n else None)
+
+    n_surge, surge_rate = followed("surge_onset_mi")
+    # Signals split by whether the pair had already surged when it signalled.
+    with_surge = "coalesce(surge_onset_mi <= onset_mi, false)"
+    _, sig_surge = followed("onset_mi", with_surge)
+    _, sig_only = followed("onset_mi", f"NOT {with_surge}")
+
+    def r4(x):
+        return round(x, 4) if x is not None else None
+
     return {
         f"recalled pairs with {MIN_COMPLAINTS}+ complaints before the recall": recalled[0],
         "share flagged before the recall": round(recalled[1] / recalled[0], 3)
@@ -374,4 +427,16 @@ def _backtest(con: duckdb.DuckDBPyConnection, signals: str, last_mi: int) -> dic
         f"same share for pairs that reached {MIN_COMPLAINTS} complaints without a signal":
             round(base, 4) if base is not None else None,
         "lift": round(rate / base, 1) if rate and base else None,
+        "share of recalled pairs that surged before the recall": round(surged[0] / recalled[0], 3)
+        if recalled[0] else None,
+        "median months surged ahead of the recall": surged[1],
+        "share flagged by a signal or a surge before the recall": round(surged[2] / recalled[0], 3)
+        if recalled[0] else None,
+        "surges old enough to judge": n_surge,
+        f"share of surges followed by a covering recall within {FOLLOW_MONTHS} months":
+            r4(surge_rate),
+        "surge lift over pairs without a signal": round(surge_rate / base, 1)
+        if surge_rate and base else None,
+        "same share for signals that had already surged": r4(sig_surge),
+        "same share for signals that had not": r4(sig_only),
     }
