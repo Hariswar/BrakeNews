@@ -2,7 +2,7 @@ PY ?= python3.12
 VENV := .venv
 BIN := $(VENV)/bin
 
-.PHONY: setup setup-site build ingest clean-data scrub embed cluster name signals spotcheck test lint site-dev site-build
+.PHONY: setup setup-site build ingest clean-data scrub embed cluster name signals features model spotcheck test lint site-dev site-build
 
 setup:            ## Python env with every pipeline dependency
 	$(PY) -m venv $(VENV)
@@ -35,6 +35,12 @@ name:             ## Phase 2: name unnamed clusters with Claude (needs ANTHROPIC
 
 signals:          ## Phase 3 start: vehicle x theme signals, recall matching, backtest
 	$(BIN)/python -m pipeline signals
+
+features:         ## Phase 3: one row per vehicle x theme x month, label = recall within 24 months
+	$(BIN)/python -m pipeline features
+
+model:            ## Phase 3: train and backtest the recall-risk model, score current pairs
+	$(BIN)/python -m pipeline model
 
 spotcheck:
 	$(BIN)/python -m pipeline spotcheck -n 20

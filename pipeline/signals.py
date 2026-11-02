@@ -161,9 +161,16 @@ def _is_signal(a: str, prr: str, chi2: str) -> str:
     return f"({a} >= {MIN_COMPLAINTS} AND {prr} >= {MIN_PRR} AND {chi2} >= {MIN_CHI2})"
 
 
-def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | None = None) -> None:
-    out = clean / "signals"
-    out.mkdir(parents=True, exist_ok=True)
+def prepare(clean: Path, model_name: str, encode: Encoder | None,
+            out: Path) -> tuple[duckdb.DuckDBPyConnection, int, pa.Table]:
+    """A connection holding the tables signals and model features share:
+      theme_of  cluster_id -> theme_id, defect themes only
+      base      one row per complaint x vehicle: month index mi, theme_id (NULL for none),
+                crash / fire / injury / death / towed flags
+      monthly   per vehicle x theme x month with a complaint: k (that month), a (window),
+                cum, nv, ct, n, prr, chi2, signal
+      covering  recalls covering a vehicle x theme: campaign_id, recall_mi, report_date
+    Returns the connection, the last month index of data and the recall-to-cluster matches."""
     con = duckdb.connect()
     con.execute("SET preserve_insertion_order = false")
     p = {k: (clean / f"{k}.parquet").as_posix()
@@ -181,7 +188,6 @@ def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | No
         rv.column("campaign_id").to_pylist(),
         cent.values.to_numpy(zero_copy_only=False).reshape(clusters.num_rows, -1),
         clusters.column("cluster_id").to_numpy())
-    pq.write_table(matches, out / "recall_themes.parquet")
     con.register("recall_clusters", matches)
 
     con.execute(f"CREATE TEMP TABLE theme_of AS {_themes(clean, con)}")
@@ -189,14 +195,18 @@ def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | No
     # so those complaints still count in the vehicle and grand totals.
     con.execute(f"""
         CREATE TEMP TABLE base AS
-        SELECT DISTINCT c.odi_number, c.make, c.model, c.model_year,
-               year(c.received_date) * 12 + month(c.received_date) - 1 AS mi, t.theme_id
+        SELECT c.odi_number, c.make, c.model, c.model_year,
+               year(c.received_date) * 12 + month(c.received_date) - 1 AS mi, t.theme_id,
+               bool_or(c.crash) AS crash, bool_or(c.fire) AS fire,
+               bool_or(c.injured > 0) AS injury, bool_or(c.deaths > 0) AS death,
+               bool_or(c.towed) AS towed
         FROM '{p['complaints']}' c
         LEFT JOIN '{p['narratives']}' n USING (complaint_id)
         LEFT JOIN '{assignments}' a USING (narrative_id)
         LEFT JOIN theme_of t USING (cluster_id)
         WHERE c.make IS NOT NULL AND c.model IS NOT NULL AND c.model_year IS NOT NULL
           AND c.received_date IS NOT NULL
+        GROUP BY ALL
     """)
     last_mi = con.execute("SELECT max(mi) FROM base").fetchone()[0]
     w = WINDOW_MONTHS - 1
@@ -229,6 +239,25 @@ def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | No
         FROM vt_r JOIN v_r USING (make, model, model_year, mi) JOIN t_r USING (theme_id, mi)
         JOIN g_r USING (mi)
     """)
+    # Recalls covering each pair: same vehicle, matched to one of the theme's clusters.
+    con.execute(f"""
+        CREATE TEMP TABLE covering AS
+        SELECT DISTINCT r.make, r.model, r.model_year, t.theme_id, r.campaign_id,
+               year(r.report_date) * 12 + month(r.report_date) - 1 AS recall_mi, r.report_date
+        FROM '{p['recalls']}' r
+        JOIN recall_clusters rc USING (campaign_id)
+        JOIN theme_of t USING (cluster_id)
+        WHERE r.report_date IS NOT NULL
+    """)
+    return con, last_mi, matches
+
+
+def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | None = None) -> None:
+    out = clean / "signals"
+    out.mkdir(parents=True, exist_ok=True)
+    con, last_mi, matches = prepare(clean, model_name, encode, out)
+    pq.write_table(matches, out / "recall_themes.parquet")
+    w = WINDOW_MONTHS - 1
     con.execute(f"""
         COPY (SELECT make, model, model_year, theme_id,
                      make_date((mi // 12)::INT, (mi % 12 + 1)::INT, 1) AS month, k AS complaints
@@ -254,16 +283,6 @@ def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | No
         FROM r JOIN rv USING (make, model, model_year) JOIN rt USING (theme_id), rg
     """)
 
-    # Recalls covering each pair: same vehicle, matched to one of the theme's clusters.
-    con.execute(f"""
-        CREATE TEMP TABLE covering AS
-        SELECT DISTINCT r.make, r.model, r.model_year, t.theme_id, r.campaign_id,
-               year(r.report_date) * 12 + month(r.report_date) - 1 AS recall_mi, r.report_date
-        FROM '{p['recalls']}' r
-        JOIN recall_clusters rc USING (campaign_id)
-        JOIN theme_of t USING (cluster_id)
-        WHERE r.report_date IS NOT NULL
-    """)
     con.execute(f"""
         COPY (
             WITH pairs AS (

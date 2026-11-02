@@ -4,7 +4,18 @@ from __future__ import annotations
 
 import argparse
 
-from pipeline import clean, cluster, embed, ingest, names, scrub, signals, spotcheck
+from pipeline import (
+    clean,
+    cluster,
+    embed,
+    features,
+    ingest,
+    model,
+    names,
+    scrub,
+    signals,
+    spotcheck,
+)
 from pipeline.config import EMBED_MODEL, NAMING_MODEL
 
 
@@ -30,6 +41,8 @@ def main() -> None:
     nm.add_argument("--no-wait", action="store_true", help="submit or check, then exit")
     sg = sub.add_parser("signals", help="vehicle x theme early-warning signals and backtest")
     sg.add_argument("--model", default=EMBED_MODEL, help="embedding model for recall summaries")
+    sub.add_parser("features", help="training table for the recall-risk model")
+    sub.add_parser("model", help="train, evaluate and score the recall-risk model")
     args = p.parse_args()
 
     if args.cmd == "ingest":
@@ -52,6 +65,10 @@ def main() -> None:
         names.run(model=args.model, wait=not args.no_wait)
     elif args.cmd == "signals":
         signals.run(model_name=args.model)
+    elif args.cmd == "features":
+        features.run()
+    elif args.cmd == "model":
+        model.run()
 
 
 if __name__ == "__main__":

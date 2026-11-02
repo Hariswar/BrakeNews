@@ -5,6 +5,7 @@ from types import SimpleNamespace
 
 import duckdb
 import numpy as np
+import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
@@ -430,9 +431,9 @@ def test_theme_groups_ignore_bad_ids_and_repeats():
     assert got == {0: (0, "n0"), 1: (1, "A"), 2: (2, "n2"), 3: (1, "A"), 4: (4, "n4")}
 
 
-def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
-    from pipeline import signals
-
+def _signal_corpus(tmp_path: Path):
+    """F-150 brake complaints all 2020 (recalled 2021-06), Honda airbag complaints elsewhere.
+    Returns a fake encoder for the recall summaries."""
     # Cluster 0 = brakes (axis 0), cluster 1 = airbags (axis 1).
     out = tmp_path / "clusters"
     out.mkdir()
@@ -446,7 +447,8 @@ def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
     def complain(make, model, year, cluster, when):
         i = str(len(complaints))
         complaints.append({"complaint_id": i, "odi_number": i, "make": make, "model": model,
-                           "model_year": year, "received_date": when})
+                           "model_year": year, "received_date": when, "crash": False,
+                           "fire": False, "injured": 0, "deaths": 0, "towed": False})
         narratives.append({"complaint_id": i, "narrative_id": f"n{i}"})
         assignments.append({"narrative_id": f"n{i}", "cluster_id": cluster})
 
@@ -472,7 +474,13 @@ def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
 
     def fake_encode(texts):
         return np.array([eye[0] if "BRAKE" in t else eye[1] for t in texts])
+    return fake_encode
 
+
+def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
+    from pipeline import signals
+
+    fake_encode = _signal_corpus(tmp_path)
     signals.run(clean=tmp_path, model_name="fake/model", encode=fake_encode)
     sig = {(r["model"], r["theme_id"]): r for r in pq.read_table(
         tmp_path / "signals" / "signals.parquet").to_pylist()}
@@ -494,3 +502,67 @@ def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
     signals.run(clean=tmp_path, model_name="fake/model",
                 encode=lambda t: calls.append(t) or fake_encode(t))
     assert calls == []  # recall vectors come from the cache
+
+
+def test_features_use_only_the_past_and_label_the_horizon(tmp_path: Path):
+    from pipeline import features
+
+    features.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    rows = pq.read_table(tmp_path / "model" / "training.parquet").to_pylist()
+    f150 = {r["month"]: r for r in rows if r["model"] == "F-150"}
+    assert len(f150) == 10  # one row per month with a complaint, Jan to Oct 2020
+    assert [f150[date(2020, m, 1)]["cum"] for m in (1, 2, 3)] == [1, 2, 3]
+    assert [f150[date(2020, m, 1)]["signal"] for m in (2, 3)] == [0, 1]  # third complaint
+    assert f150[date(2020, 3, 1)]["k3_prev"] == 0 and f150[date(2020, 6, 1)]["k3_prev"] == 3
+    # Recalled 2021-06: every 2020 row is within 24 months of it.
+    assert all(r["label"] == 1 for r in f150.values())
+    assert f150[date(2020, 5, 1)]["theme_recalls"] == 0  # the recall is still in the future
+    civic = [r for r in rows if r["model"] == "CIVIC" and r["theme_id"] == 0]
+    assert [r["label"] for r in civic] == [0]  # brake complaint, no brake recall
+    # Data runs to 2026-01, so every 2020 row's 24-month horizon has passed: all labelled.
+    assert all(r["label"] is not None for r in rows)
+    # Rows after a covering recall are dropped: the airbag recall (2019) predates every
+    # Civic airbag complaint.
+    assert not [r for r in rows if r["model"] == "CIVIC" and r["theme_id"] == 1]
+
+
+def test_model_splits_leave_a_horizon_gap():
+    from pipeline.model import splits
+
+    mi = pd.Series(range(0, 200))
+    s = splits(mi, last_labelled=199, test_months=48, validation_months=36, gap=24)
+    train, val, test = (mi[s[k]] for k in ("train", "validation", "test"))
+    assert test.min() == 152 and test.max() == 199 and len(val) == 36
+    assert test.min() - val.max() > 24 and val.min() - train.max() > 24
+
+
+def test_model_beats_the_rule_when_risk_is_learnable(tmp_path: Path):
+    pytest.importorskip("lightgbm")
+    pytest.importorskip("mlflow")
+    from pipeline import model
+    from pipeline.features import FEATURES
+
+    # Recalls follow fires, whatever the PRR says; the rule only looks at the PRR.
+    rng = np.random.default_rng(0)
+    n = 30_000
+    mi = rng.integers(24_000, 24_200, n)
+    fire = rng.random(n)
+    df = pd.DataFrame({f: rng.random(n) for f in FEATURES})
+    df = df.assign(make=rng.choice(["FORD", "KIA"], n), theme_id=rng.integers(0, 5, n),
+                   fire_share=fire, mi=mi, signal=(rng.random(n) < 0.3).astype(int),
+                   model="X", model_year=2020, month=pd.Timestamp("2020-01-01"),
+                   label=(rng.random(n) < np.where(fire > 0.9, 0.3, 0.01)).astype(float))
+    df.loc[df["mi"] > 24_175, "label"] = np.nan  # the last 24 months have no label yet
+    (tmp_path / "model").mkdir()
+    df.to_parquet(tmp_path / "model" / "training.parquet")
+
+    m = model.run(clean=tmp_path, models_dir=tmp_path / "models", runs_dir=tmp_path / "mlruns",
+                  test_months=36, validation_months=24, max_rounds=200)
+    t = m["test"]
+    assert t["model_precision_at_rule_volume"] > 2 * t["rule_precision"]
+    assert t["average_precision"] > 2 * t["base_rate"]
+    assert m["feature_importance"]["fire_share"] == max(m["feature_importance"].values())
+    scores = pd.read_parquet(tmp_path / "model" / "risk_scores.parquet")
+    assert len(scores) and scores["risk"].is_monotonic_decreasing
+    assert (tmp_path / "models" / "recall_risk.txt").exists()
+    assert (tmp_path / "mlruns" / "mlflow.db").exists()
