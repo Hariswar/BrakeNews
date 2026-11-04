@@ -15,10 +15,13 @@ a rolling window of the last WINDOW_MONTHS months of complaints:
   what inflates counts without a defect: a popular model, an older vehicle, a year with more
   complaints overall. The onset is the first month a pair signals.
 
-Recalls. Each recall's defect summary is embedded with the narratives' model and matched to the
-RECALL_TOP_K complaint clusters whose (unadjusted) centroids it is most similar to, if at least
-RECALL_MIN_SIM. A recall then covers a pair when it names the same make, model and model year
-and matches the pair's theme. This is much tighter than matching on NHTSA's component category
+Recalls. A recall covers a pair when it names the same make, model and model year and matches
+the pair's theme. Which themes a recall matches comes from recall_match.py (`make match`): an
+embedding shortlist that Claude narrows to the themes describing the same defect. A recall
+Claude has not labelled yet (published since the last `make match`, or before clusters were
+named) falls back to the embedding rule: its defect summary, embedded with the narratives'
+model, matches the RECALL_TOP_K clusters whose (unadjusted) centroids it is most similar to, if
+at least RECALL_MIN_SIM. Both are much tighter than matching on NHTSA's component category
 ("ENGINE" covers dozens of unrelated themes).
 
 Surge. A second, independent flag from surge.py: the vehicle's own complaints have shifted
@@ -37,7 +40,8 @@ Outputs:
   theme_monthly.parquet  complaints per vehicle x theme x month (for charts)
   signals.parquet        one row per vehicle x theme: counts, onset, surge onset, current
                          window and surge, recall
-  recall_themes.parquet  campaign_id -> matched cluster_id, similarity
+  recall_themes.parquet  campaign_id -> matched theme_id, similarity (embedding rule only),
+                         method ("claude" or "embedding")
   backtest.json          the numbers above
 Recall-summary vectors are cached in data/clean/embeddings/<model>/recalls.parquet.
 """
@@ -178,15 +182,16 @@ def prepare(clean: Path, model_name: str, encode: Encoder | None,
       monthly   per vehicle x theme x month with a complaint: k (that month), a (window),
                 cum, nv, ct, n, prr, chi2, signal
       surge     per row of monthly: k3, nv3, expected3, surge_p, surge_q, surge (surge.py)
+      recall_theme  campaign_id -> theme_id, similarity, method
       covering  recalls covering a vehicle x theme: campaign_id, recall_mi, report_date
-    Returns the connection, the last month index of data and the recall-to-cluster matches."""
+    Returns the connection, the last month index of data and the recall-to-theme matches."""
     con = duckdb.connect()
     con.execute("SET preserve_insertion_order = false")
     p = {k: (clean / f"{k}.parquet").as_posix()
          for k in ("complaints", "narratives", "recalls")}
     assignments = (clean / "clusters" / "assignments.parquet").as_posix()
     clusters = pq.read_table(clean / "clusters" / "clusters.parquet",
-                             columns=["cluster_id", "raw_centroid"])
+                             columns=["fit_id", "cluster_id", "raw_centroid"])
 
     # Recall -> clusters, through the defect summaries.
     rv = _recall_vectors(clean, model_name, encode)
@@ -198,8 +203,32 @@ def prepare(clean: Path, model_name: str, encode: Encoder | None,
         cent.values.to_numpy(zero_copy_only=False).reshape(clusters.num_rows, -1),
         clusters.column("cluster_id").to_numpy())
     con.register("recall_clusters", matches)
-
     con.execute(f"CREATE TEMP TABLE theme_of AS {_themes(clean, con)}")
+
+    # Claude's labels (recall_match.py) for this fit and this summary text replace the
+    # embedding rule; an empty label means "covers none of the themes".
+    labels = clean / "signals" / "recall_labels.parquet"
+    con.register("recall_md5", rv.select(["campaign_id", "text_md5"]))
+    con.execute("CREATE TEMP TABLE labelled (campaign_id VARCHAR, theme_ids INT[])")
+    if labels.exists():
+        con.execute(f"""
+            INSERT INTO labelled
+            SELECT l.campaign_id, l.theme_ids FROM '{labels.as_posix()}' l
+            JOIN recall_md5 m ON m.campaign_id = l.campaign_id AND m.text_md5 = l.text_md5
+            WHERE l.fit_id = ?""", [clusters.column("fit_id")[0].as_py()])
+    con.execute("""
+        CREATE TEMP TABLE recall_theme AS
+        SELECT rc.campaign_id, t.theme_id, max(rc.similarity) AS similarity,
+               'embedding' AS method
+        FROM recall_clusters rc JOIN theme_of t USING (cluster_id)
+        WHERE rc.campaign_id NOT IN (SELECT campaign_id FROM labelled)
+        GROUP BY ALL
+        UNION ALL
+        SELECT DISTINCT l.campaign_id, u.theme_id, NULL::FLOAT AS similarity,
+               'claude' AS method
+        FROM labelled l, unnest(l.theme_ids) AS u(theme_id)
+        WHERE u.theme_id IN (SELECT theme_id FROM theme_of)
+    """)
     # One row per complaint x vehicle; theme NULL when the narrative has none (or no narrative),
     # so those complaints still count in the vehicle and grand totals.
     con.execute(f"""
@@ -255,11 +284,11 @@ def prepare(clean: Path, model_name: str, encode: Encoder | None,
         SELECT DISTINCT r.make, r.model, r.model_year, t.theme_id, r.campaign_id,
                year(r.report_date) * 12 + month(r.report_date) - 1 AS recall_mi, r.report_date
         FROM '{p['recalls']}' r
-        JOIN recall_clusters rc USING (campaign_id)
-        JOIN theme_of t USING (cluster_id)
+        JOIN recall_theme t USING (campaign_id)
         WHERE r.report_date IS NOT NULL
     """)
-    return con, last_mi, matches
+    return con, last_mi, con.sql(
+        "SELECT * FROM recall_theme ORDER BY campaign_id, theme_id").to_arrow_table()
 
 
 def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | None = None) -> None:
@@ -363,7 +392,10 @@ def run(clean: Path = CLEAN, model_name: str = EMBED_MODEL, encode: Encoder | No
         f"SELECT count(*) FILTER (active), count(*) FILTER (surging) "
         f"FROM '{(out / 'signals.parquet').as_posix()}' "
         f"WHERE recall_campaign IS NULL AND NOT recalled_before_complaints").fetchone()
-    print(f"[signals] {matches.num_rows:,} recall-to-cluster matches; "
+    by = dict(con.execute("SELECT method, count(*) FROM recall_theme GROUP BY 1").fetchall())
+    print(f"[signals] recall-to-theme matches: {by.get('claude', 0):,} checked by Claude, "
+          f"{by.get('embedding', 0):,} from the embedding rule (`make match` checks them)")
+    print(f"[signals] "
           f"{active:,} active signals and {surging:,} surges with no covering recall")
     for k, v in backtest.items():
         print(f"[signals]   {k}: {v}")

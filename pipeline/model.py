@@ -16,30 +16,12 @@ block. The candidate with the best mean average precision over the folds' test b
 (ties: fewer features). The result is fixed below as MODEL_FEATURES and PARAMS, so `make model`
 does not depend on a previous run; `make select` says if a rerun disagrees.
 
-Selection result (2026-11-01, selection.json): dropping the identity features `make` and
-`theme_id` won. They let the model memorise how often each make and theme was recalled in the
-training era, which drifts (validation AUC 0.75, test 0.66 with them); theme_recalls and
-make_recalls_5y carry the same information, counted as of each row's month. The surge features
-(surge.py) did not add to the model on these folds, though a surge is a useful alert by itself
-(signals.py backtest); they stay in the training table for comparison.
-
-The baseline is the signals.py rule (3+ complaints, PRR >= 2, chi-square >= 4). The headline
-comparison holds the alert volume fixed: if analysts can review as many alerts as the rule
-raises, how many of those alerts does each method spend on pairs that are then recalled?
-
-Scores are LightGBM probabilities without class reweighting, so they stay roughly calibrated
-(metrics.json reports the mean score next to the observed rate on the test block). After
-evaluation the model is retrained on every labelled row with the chosen number of rounds and
-scores each pair's latest month in the last WINDOW_MONTHS months.
-
-Every run is logged to MLflow in mlruns/ (a SQLite store, since MLflow 3 retired the plain
-folder store); browse with `mlflow ui --backend-store-uri sqlite:///mlruns/mlflow.db`.
-
-Outputs:
-  models/recall_risk.txt                the final LightGBM model
-  data/clean/model/metrics.json         validation and test metrics, baselines, importance
-  data/clean/model/risk_scores.parquet  current pairs with their risk score and surge state
-  data/clean/model/selection.json       `make select`: every candidate's fold metrics
+Selection result (2026-11-02, selection.json, on quarterly snapshots with Claude-checked recall
+matches): dropping the identity features `make` and `theme_id` wins again (mean AP over the
+folds 0.0246 against 0.0224 with them). They let the model memorise how often each make and
+theme was recalled in the training era, which drifts; theme_recalls and make_recalls_5y carry
+the same information, counted as of each snapshot. With and without the surge features is
+within noise (0.0246 and 0.0242); the rule picks the higher, so they stay in.
 """
 
 from __future__ import annotations
@@ -52,7 +34,6 @@ import pandas as pd
 
 from pipeline.config import CLEAN, ROOT
 from pipeline.features import CATEGORICAL, FEATURES, HORIZON_MONTHS
-from pipeline.signals import WINDOW_MONTHS
 
 TEST_MONTHS = 48
 VALIDATION_MONTHS = 36
@@ -74,7 +55,7 @@ FEATURE_SETS = {
     "no_identity_no_surge": tuple(f for f in FEATURES if f not in IDENTITY + SURGE),
 }
 # Chosen by `make select` (see the module docstring).
-MODEL_FEATURE_SET = "no_identity_no_surge"
+MODEL_FEATURE_SET = "no_identity"
 MODEL_PARAM_SET = "steady"
 MODEL_FEATURES = FEATURE_SETS[MODEL_FEATURE_SET]
 PARAMS = PARAM_SETS[MODEL_PARAM_SET]
@@ -138,18 +119,18 @@ def _track(runs: Path, experiment: str = "recall-risk") -> None:
     mlflow.set_experiment(experiment)
 
 
-def _score_current(booster, df: pd.DataFrame, categories: dict, features: tuple[str, ...],
-                   models_dir: Path, out: Path) -> int:
-    """Save the model trained on every labelled row and score each pair's latest month in
-    the last WINDOW_MONTHS months."""
+def _score_current(booster, current: pd.DataFrame, categories: dict,
+                   features: tuple[str, ...], models_dir: Path, out: Path) -> int:
+    """Save the model trained on every labelled row and score the last snapshot: every pair
+    with a complaint in the window ending at the last month of data, as of that month. Pairs a
+    covering recall has settled have no snapshot after it (features.py), so none is scored."""
     models_dir.mkdir(parents=True, exist_ok=True)
     booster.save_model(str(models_dir / "recall_risk.txt"))
-    last_mi = int(df["mi"].max())
-    latest = (df[df["mi"] > last_mi - WINDOW_MONTHS].sort_values("mi")
-              .groupby(["make", "model", "model_year", "theme_id"], observed=True).tail(1))
-    scores = (latest[["make", "model", "model_year", "theme_id", "month", "a", "prr", "signal",
-                      "k3", "expected3", "surge_logp", "surge"]]
-              .assign(risk=booster.predict(_frame(latest, categories, features)))
+    if "recall_mi" in current:
+        current = current[current["recall_mi"].isna()]
+    scores = (current[["make", "model", "model_year", "theme_id", "month", "a", "k3",
+                       "quiet_months", "prr", "signal", "expected3", "surge_logp", "surge"]]
+              .assign(risk=booster.predict(_frame(current, categories, features)))
               .sort_values("risk", ascending=False))
     scores.to_parquet(out / "risk_scores.parquet", index=False)
     return len(scores)
@@ -194,9 +175,23 @@ def _fit(labelled: pd.DataFrame, last_labelled: int, categories: dict,
 
 
 def _load(clean: Path) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
-    df = pd.read_parquet(clean / "model" / "training.parquet")
+    """(the last snapshot, every labelled row, category levels). Reads only the columns the
+    model uses, with floats as float32: the snapshot table has millions of rows."""
+    import pyarrow.parquet as pq
+
+    path = clean / "model" / "training.parquet"
+    have = set(pq.read_schema(path).names)
+    keep = ["make", "model", "model_year", "theme_id", "month", "mi", "label", "recall_mi",
+            *FEATURES]
+    table = pq.read_table(path, columns=[c for c in dict.fromkeys(keep) if c in have])
+    df = table.to_pandas()
+    del table
+    floats = df.select_dtypes("float64").columns.drop("label", errors="ignore")
+    df[floats] = df[floats].astype(np.float32)
     categories = {c: sorted(df[c].dropna().unique().tolist()) for c in CATEGORICAL}
-    return df, df[df["label"].notna()].reset_index(drop=True), categories
+    current = df[df["mi"] == df["mi"].max()].reset_index(drop=True)
+    labelled = df[df["label"].notna()].reset_index(drop=True)
+    return current, labelled, categories
 
 
 def run(clean: Path = CLEAN, models_dir: Path = ROOT / "models",
@@ -211,7 +206,7 @@ def run(clean: Path = CLEAN, models_dir: Path = ROOT / "models",
 
     params = {**PARAMS, **(params or {})}
     out = clean / "model"
-    df, labelled, categories = _load(clean)
+    current, labelled, categories = _load(clean)
     booster, metrics = _fit(labelled, int(labelled["mi"].max()), categories, features, params,
                             max_rounds, test_months, validation_months)
     rounds = metrics["rounds"]
@@ -235,7 +230,7 @@ def run(clean: Path = CLEAN, models_dir: Path = ROOT / "models",
                                      labelled["label"].astype(int),
                                      categorical_feature=list(cats))
             metrics["scored_pairs"] = _score_current(
-                lgb.train(params, everything, num_boost_round=rounds), df, cats, features,
+                lgb.train(params, everything, num_boost_round=rounds), current, cats, features,
                 models_dir, out)
             (out / "metrics.json").write_text(json.dumps(metrics, indent=2, default=str) + "\n")
             mlflow.log_artifact(str(out / "metrics.json"))
@@ -268,8 +263,7 @@ def select(clean: Path = CLEAN, runs_dir: Path = ROOT / "mlruns",
 
     feature_sets = feature_sets or FEATURE_SETS
     param_sets = param_sets or PARAM_SETS
-    df, labelled, categories = _load(clean)
-    del df
+    _, labelled, categories = _load(clean)
     ends = selection_ends(int(labelled["mi"].max()), folds, test_months)
     _track(runs_dir, "recall-risk-selection")
     results = []

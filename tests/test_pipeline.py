@@ -447,9 +447,13 @@ def _signal_corpus(tmp_path: Path):
     def complain(make, model, year, cluster, when):
         i = str(len(complaints))
         complaints.append({"complaint_id": i, "odi_number": i, "make": make, "model": model,
-                           "model_year": year, "received_date": when, "crash": False,
-                           "fire": False, "injured": 0, "deaths": 0, "towed": False})
-        narratives.append({"complaint_id": i, "narrative_id": f"n{i}"})
+                           "model_year": year, "received_date": when, "fail_date": when,
+                           "crash": False, "fire": False, "injured": 0, "deaths": 0,
+                           "towed": False, "miles": 1000 * int(i), "speed": 40,
+                           "component": "SERVICE BRAKES" if cluster == 0 else "AIR BAGS"})
+        text = ("THE BRAKE PEDAL WENT TO THE FLOOR" if cluster == 0
+                else "THE AIRBAG LIGHT STAYS ON")
+        narratives.append({"complaint_id": i, "narrative_id": f"n{i}", "description": text})
         assignments.append({"narrative_id": f"n{i}", "cluster_id": cluster})
 
     for m in range(1, 11):  # the F-150 files brake complaints all year
@@ -462,14 +466,20 @@ def _signal_corpus(tmp_path: Path):
     pq.write_table(pa.Table.from_pylist(complaints), tmp_path / "complaints.parquet")
     pq.write_table(pa.Table.from_pylist(narratives), tmp_path / "narratives.parquet")
     pq.write_table(pa.Table.from_pylist(assignments), out / "assignments.parquet")
+    summaries = ["THE BRAKE HOSE MAY LEAK.", "THE AIRBAG INFLATOR MAY RUPTURE."]
     pq.write_table(pa.table({
-        "campaign_id": ["21V001000", "19V002000"],
-        "defect_summary": ["THE BRAKE HOSE MAY LEAK.", "THE AIRBAG INFLATOR MAY RUPTURE."],
+        "campaign_id": ["21V001000", "19V002000"], "defect_summary": summaries,
+        "report_date": [date(2021, 6, 1), date(2019, 3, 1)],
+        "makes": [["FORD"], ["HONDA"]], "models": [["F-150"], ["CIVIC"]],
+        "first_model_year": [2020, 2019], "last_model_year": [2020, 2019],
+        "potentially_affected": [1000, 2000],
+        "components": [["SERVICE BRAKES:HYDRAULIC"], ["AIR BAGS:FRONTAL"]],
     }), tmp_path / "recall_timeline.parquet")
     pq.write_table(pa.table({
         "campaign_id": ["21V001000", "19V002000"], "make": ["FORD", "HONDA"],
         "model": ["F-150", "CIVIC"], "model_year": [2020, 2019],
         "report_date": [date(2021, 6, 1), date(2019, 3, 1)],
+        "component": ["SERVICE BRAKES", "AIR BAGS"], "defect_summary": summaries,
     }), tmp_path / "recalls.parquet")
 
     def fake_encode(texts):
@@ -492,8 +502,8 @@ def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
     assert sig[("CIVIC", 1)]["recalled_before_complaints"]  # recalled in 2019, before them
     assert sig[("CIVIC", 0)]["recall_campaign"] is None  # the airbag recall is not a brake one
     matches = pq.read_table(tmp_path / "signals" / "recall_themes.parquet").to_pylist()
-    assert {(m["campaign_id"], m["cluster_id"]) for m in matches} == {
-        ("21V001000", 0), ("19V002000", 1)}
+    assert {(m["campaign_id"], m["theme_id"], m["method"]) for m in matches} == {
+        ("21V001000", 0, "embedding"), ("19V002000", 1, "embedding")}
     bt = json.loads((tmp_path / "signals" / "backtest.json").read_text())
     assert bt["share flagged before the recall"] == 1.0
     assert bt["median months flagged ahead of the recall"] == 15
@@ -510,26 +520,73 @@ def test_signals_flag_disproportion_before_the_recall(tmp_path: Path):
     assert calls == []  # recall vectors come from the cache
 
 
-def test_features_use_only_the_past_and_label_the_horizon(tmp_path: Path):
+def test_claude_recall_labels_replace_the_embedding_rule(tmp_path: Path):
+    from pipeline import signals
+    from pipeline.recall_match import LABELS_SCHEMA
+
+    fake_encode = _signal_corpus(tmp_path)
+    signals.run(clean=tmp_path, model_name="fake/model", encode=fake_encode)
+    vectors = pq.read_table(tmp_path / "embeddings" / "fake--model" / "recalls.parquet")
+    md5 = dict(zip(vectors["campaign_id"].to_pylist(), vectors["text_md5"].to_pylist(),
+                   strict=True))
+
+    def label(rows):
+        pq.write_table(pa.Table.from_pylist(rows, schema=LABELS_SCHEMA),
+                       tmp_path / "signals" / "recall_labels.parquet")
+        signals.run(clean=tmp_path, model_name="fake/model", encode=fake_encode)
+        sig = {(r["model"], r["theme_id"]): r for r in pq.read_table(
+            tmp_path / "signals" / "signals.parquet").to_pylist()}
+        return sig, {(m["campaign_id"], m["theme_id"], m["method"]) for m in pq.read_table(
+            tmp_path / "signals" / "recall_themes.parquet").to_pylist()}
+
+    # Claude says the brake-hose recall covers no theme: the F-150 pair is no longer recalled.
+    row = {"fit_id": "f", "campaign_id": "21V001000", "text_md5": md5["21V001000"],
+           "candidates": [0, 1], "theme_ids": [], "model": "m"}
+    sig, matches = label([row])
+    assert sig[("F-150", 0)]["recall_campaign"] is None
+    assert matches == {("19V002000", 1, "embedding")}
+    # A label for another fit, or for an older summary text, is ignored.
+    for stale in ({**row, "fit_id": "old"}, {**row, "text_md5": "0" * 32}):
+        sig, matches = label([stale])
+        assert sig[("F-150", 0)]["recall_campaign"] == "21V001000"
+    # Theme ids that do not exist (or are not defect themes) are dropped.
+    sig, matches = label([{**row, "theme_ids": [0, 77]}])
+    assert matches == {("21V001000", 0, "claude"), ("19V002000", 1, "embedding")}
+
+
+def test_features_are_quarterly_snapshots_of_the_past(tmp_path: Path):
     from pipeline import features
 
     features.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
     rows = pq.read_table(tmp_path / "model" / "training.parquet").to_pylist()
+    # Data runs to 2026-01, so snapshots fall in January, April, July and October.
+    assert {r["month"].month for r in rows} == {1, 4, 7, 10}
     f150 = {r["month"]: r for r in rows if r["model"] == "F-150"}
-    assert len(f150) == 10  # one row per month with a complaint, Jan to Oct 2020
-    assert [f150[date(2020, m, 1)]["cum"] for m in (1, 2, 3)] == [1, 2, 3]
-    assert [f150[date(2020, m, 1)]["signal"] for m in (2, 3)] == [0, 1]  # third complaint
-    assert f150[date(2020, 3, 1)]["k3_prev"] == 0 and f150[date(2020, 6, 1)]["k3_prev"] == 3
-    # Recalled 2021-06: every 2020 row is within 24 months of it.
-    assert all(r["label"] == 1 for r in f150.values())
-    assert f150[date(2020, 5, 1)]["theme_recalls"] == 0  # the recall is still in the future
+    # Brake complaints Jan-Oct 2020, recalled 2021-06: snapshots up to the one before it.
+    assert sorted(f150) == [date(2020, m, 1) for m in (1, 4, 7, 10)] + [
+        date(2021, 1, 1), date(2021, 4, 1)]
+    apr = f150[date(2020, 4, 1)]
+    assert (apr["a"], apr["k3"], apr["k3_prev"], apr["k"]) == (4, 3, 1, 1)
+    assert apr["signal"] == 1 and apr["signal_months"] == 2  # fired in March and April
+    quiet = f150[date(2021, 1, 1)]  # no complaint since October
+    assert (quiet["k"], quiet["k3"], quiet["k3_prev"], quiet["a"]) == (0, 0, 3, 10)
+    assert quiet["quiet_months"] == 3 and f150[date(2021, 4, 1)]["quiet_months"] == 6
+    assert all(r["label"] == 1 for r in f150.values())  # every snapshot within 24 months
     civic = [r for r in rows if r["model"] == "CIVIC" and r["theme_id"] == 0]
-    assert [r["label"] for r in civic] == [0]  # brake complaint, no brake recall
-    # Data runs to 2026-01, so every 2020 row's 24-month horizon has passed: all labelled.
-    assert all(r["label"] is not None for r in rows)
+    # One brake complaint, June 2020: in the window of eight snapshots, Jul 2020 to Apr 2022.
+    assert [r["month"] for r in civic][0] == date(2020, 7, 1) and len(civic) == 8
+    assert [r["label"] for r in civic] == [0] * 8  # no brake recall for the Civic
+    assert [r["theme_recalls"] for r in civic][3:5] == [0, 1]  # the F-150's, from 2021-06
     # Rows after a covering recall are dropped: the airbag recall (2019) predates every
     # Civic airbag complaint.
     assert not [r for r in rows if r["model"] == "CIVIC" and r["theme_id"] == 1]
+
+
+def test_snapshot_months_end_at_the_last_month():
+    from pipeline.features import snapshot_months
+
+    assert snapshot_months(0, 10, 3) == [1, 4, 7, 10]
+    assert snapshot_months(5, 5, 3) == [5]
 
 
 def test_surge_compares_a_vehicle_with_its_own_past():
@@ -620,3 +677,289 @@ def test_selection_prefers_the_features_that_carry_the_risk(tmp_path: Path):
     # 2012-09. Each fold's test block ends a horizon before that, then 24 months earlier.
     assert [t.split(" to ")[1] for t in sel["fold_test_blocks"]] == ["2010-08", "2008-08"]
     assert json.loads((tmp_path / "model" / "selection.json").read_text())["candidates"]
+
+
+class _FakeClaude:
+    """Scripted stand-in for anthropic.Anthropic(): each create() returns the next response."""
+
+    def __init__(self, script):
+        self.script, self.calls = list(script), []
+        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create))
+
+    def _create(self, **kwargs):
+        self.calls.append(kwargs)
+        content = self.script.pop(0)
+        return SimpleNamespace(
+            content=content, stop_details=None,
+            stop_reason="tool_use" if any(b.type == "tool_use" for b in content) else "end_turn",
+            usage=SimpleNamespace(input_tokens=1000, output_tokens=200,
+                                  cache_read_input_tokens=0, cache_creation_input_tokens=0))
+
+
+def _report(ids, campaigns=("21V001000",)):
+    return [SimpleNamespace(type="text", text=json.dumps({
+        "headline": "Brake pedal sinks to the floor", "assessment": "likely_defect",
+        "confidence": "medium", "summary": "s", "failure_pattern": "f", "safety_risk": "r",
+        "evidence": [{"finding": "pedal to floor", "complaint_ids": list(ids)}],
+        "related_recalls": [{"campaign_id": c, "relation": "covers_this_problem", "note": "n"}
+                            for c in campaigns],
+        "open_questions": []}))]
+
+
+def test_investigator_reads_evidence_checks_citations_and_caches(tmp_path: Path):
+    pytest.importorskip("langgraph")
+    from pipeline import investigate, signals
+
+    signals.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    pair = investigate.Pair("FORD", "F-150", 2020, 0)
+    use = lambda i, name, args: SimpleNamespace(type="tool_use", id=i, name=name, input=args)  # noqa: E731
+    fake = _FakeClaude([
+        [use("t1", "search_complaints", {"keyword": "pedal", "severe_only": False, "limit": 3,
+                                         "offset": 0}),
+         use("t2", "vehicle_recalls", {}), use("t3", "drop_tables", {}),
+         use("t4", "theme_recalls", {"limit": 5}), use("t5", "compare_model_years", {}),
+         use("t6", "other_vehicles_with_theme", {"limit": 5})],
+        _report(["0", "999"], ["21V001000", "99V999000"]),  # one complaint, one recall made up
+        _report(["0", "1"]),
+    ])
+    rec = investigate.run(clean=tmp_path, pair=pair, client=fake)[0]
+
+    first = fake.calls[0]
+    assert first["output_config"]["format"]["schema"] == investigate.REPORT_SCHEMA
+    assert first["tool_choice"] == {"type": "auto"}
+    dossier = json.loads(first["messages"][0]["content"].split("(JSON):\n", 1)[1])
+    assert dossier["complaints_with_narrative"]["complaints"] == 10
+    assert dossier["signal"]["onset_month"] == "2020-03-01"
+    # The tool results went back in one user message; the unknown tool came back as an error.
+    results = fake.calls[1]["messages"][2]["content"]
+    found = json.loads(results[0]["content"])
+    assert found["matching"] == 10 and found["returned"] == 3
+    assert found["complaints"][0]["narrative"] == "THE BRAKE PEDAL WENT TO THE FLOOR"
+    assert json.loads(results[1]["content"])["recalls"][0]["campaign_id"] == "21V001000"
+    assert results[2]["is_error"] and not any(r["is_error"] for r in results[:2] + results[3:])
+    assert [r["campaign_id"] for r in json.loads(results[3]["content"])["recalls"]] == [
+        "21V001000"]  # matched to the brake theme; the airbag recall is not
+    assert [y["model_year"] for y in json.loads(results[4]["content"])["model_years"]] == [2020]
+    # Honda brake complaints exist, but from 2020: none in the last two years.
+    assert json.loads(results[5]["content"])["vehicles"] == []
+    # The made-up citations were sent back once, then the corrected report passed.
+    revise = fake.calls[2]["messages"][-1]["content"]
+    assert "999" in revise and "99V999000" in revise and "21V001000" not in revise
+    assert rec["check"] == {"passed": True, "problems": [], "revisions": 1}
+    assert rec["report"]["evidence"][0]["complaint_ids"] == ["0", "1"]
+    assert [c["name"] for c in rec["tool_calls"]][:3] == [
+        "search_complaints", "vehicle_recalls", "drop_tables"]
+    saved = tmp_path / "investigations" / "FORD_F-150_2020_t0.json"
+    assert json.loads(saved.read_text())["evidence_key"] == rec["evidence_key"]
+
+    # Same evidence: skipped without calling the model.
+    again = _FakeClaude([])
+    assert investigate.run(clean=tmp_path, pair=pair, client=again)[0]["created"] == rec["created"]
+    assert again.calls == []
+
+
+class _FakeBatchAPI:
+    """Stand-in for client.messages.batches: answer(params) gives each request's JSON."""
+
+    def __init__(self, answer, fail=()):
+        self.answer, self.fail, self.created, self.batches = answer, set(fail), [], {}
+        self.messages = SimpleNamespace(batches=self)
+
+    def create(self, requests):
+        bid = f"b{len(self.created)}"
+        self.created.append(requests)
+        self.batches[bid] = requests
+        return SimpleNamespace(id=bid)
+
+    def retrieve(self, bid):
+        return SimpleNamespace(processing_status="ended",
+                               request_counts=SimpleNamespace(processing=0))
+
+    def results(self, bid):
+        for r in self.batches[bid]:
+            if r["custom_id"] in self.fail:
+                yield SimpleNamespace(custom_id=r["custom_id"],
+                                      result=SimpleNamespace(type="errored"))
+                continue
+            text = json.dumps(self.answer(r["params"]))
+            msg = SimpleNamespace(stop_reason="end_turn",
+                                  content=[SimpleNamespace(type="text", text=text)])
+            yield SimpleNamespace(custom_id=r["custom_id"],
+                                  result=SimpleNamespace(type="succeeded", message=msg))
+
+
+def _name_corpus(tmp_path: Path):
+    """The signal corpus with both clusters named as defects."""
+    encode = _signal_corpus(tmp_path)
+    pq.write_table(pa.table({
+        "fit_id": ["f", "f"], "cluster_id": pa.array([0, 1], pa.int32()),
+        "name": ["Brake pedal sinks", "Airbag light on"],
+        "summary": ["Owners report the brake pedal sinking.", "Owners report airbag lights."],
+        "kind": ["defect", "defect"], "model": ["m", "m"],
+    }), tmp_path / "clusters" / "names.parquet")
+    return encode
+
+
+def test_recall_match_labels_once_and_resumes(tmp_path: Path):
+    from pipeline import recall_match, signals
+
+    encode = _name_corpus(tmp_path)
+    prompts = {}
+
+    def answer(params):
+        text = params["messages"][0]["content"]
+        prompts[text.split("\n", 1)[0]] = text
+        # The brake recall: theme 0, plus an id that was not on the shortlist.
+        return {"theme_ids": [0, 5] if "BRAKE" in text else []}
+
+    fake = _FakeBatchAPI(answer)
+    assert not recall_match.run(clean=tmp_path, model_name="fake/model", encode=encode,
+                                client=fake, wait=False)  # submitted, not collected
+    assert (tmp_path / "signals" / "recall_match_batch.json").exists()
+    assert recall_match.run(clean=tmp_path, model_name="fake/model", encode=encode, client=fake)
+    assert len(fake.created) == 1 and len(fake.created[0]) == 2  # collected, not resubmitted
+    # Each recall saw only its shortlist: the brake recall is nowhere near the airbag theme.
+    assert "0 | Brake pedal sinks" in prompts["Recall 21V001000"]
+    assert "Airbag" not in prompts["Recall 21V001000"]
+    labels = {r["campaign_id"]: r["theme_ids"] for r in pq.read_table(
+        tmp_path / "signals" / "recall_labels.parquet").to_pylist()}
+    assert labels == {"21V001000": [0], "19V002000": []}
+
+    # Nothing new: no request at all.
+    assert recall_match.run(clean=tmp_path, model_name="fake/model", encode=encode,
+                            client=_FakeBatchAPI(lambda p: pytest.fail("asked again")))
+    signals.run(clean=tmp_path, model_name="fake/model", encode=encode)
+    sig = {(r["model"], r["theme_id"]): r for r in pq.read_table(
+        tmp_path / "signals" / "signals.parquet").to_pylist()}
+    assert sig[("F-150", 0)]["recall_campaign"] == "21V001000"
+    # Claude said the airbag recall covers no theme, so the Civic airbag pair is unrecalled.
+    assert not sig[("CIVIC", 1)]["recalled_before_complaints"]
+
+
+def test_verify_confirms_only_alerts_whose_complaints_fit_the_theme(tmp_path: Path):
+    from pipeline import signals, verify
+
+    encode = _name_corpus(tmp_path)
+    # Recent complaints: a Camry with real brake failures, a Fit whose "brake" complaints are
+    # mostly about other drivers' headlights, and airbag complaints that keep shares honest.
+    tables = {k: pq.read_table(tmp_path / f).to_pylist() for k, f in (
+        ("complaints", "complaints.parquet"), ("narratives", "narratives.parquet"),
+        ("assignments", "clusters/assignments.parquet"))}
+
+    def add(model, cluster, when, text):
+        i = f"x{len(tables['complaints'])}"
+        tables["complaints"].append({**tables["complaints"][0], "complaint_id": i,
+                                     "odi_number": i, "make": "TOYOTA" if model == "CAMRY"
+                                     else "HONDA" if model == "FIT" else "KIA",
+                                     "model": model, "model_year": 2024, "received_date": when,
+                                     "fail_date": when})
+        tables["narratives"].append({"complaint_id": i, "narrative_id": f"n{i}",
+                                     "description": text})
+        tables["assignments"].append({"narrative_id": f"n{i}", "cluster_id": cluster})
+
+    for m in range(9, 14):
+        add("CAMRY", 0, date(2025 + m // 13, (m - 1) % 12 + 1, 3),
+            "BRAKE PEDAL SANK" if m < 12 else "ONCOMING HEADLIGHTS BLIND ME")
+    for m in range(10, 14):
+        add("FIT", 0, date(2025 + m // 13, (m - 1) % 12 + 1, 4),
+            "BRAKE PEDAL SANK" if m == 10 else "ONCOMING HEADLIGHTS BLIND ME")
+    for d in range(1, 21):
+        add("SOUL", 1, date(2025, 6, d), "AIRBAG LIGHT ON")
+    for k, f in (("complaints", "complaints.parquet"), ("narratives", "narratives.parquet"),
+                 ("assignments", "clusters/assignments.parquet")):
+        pq.write_table(pa.Table.from_pylist(tables[k]), tmp_path / f)
+    signals.run(clean=tmp_path, model_name="fake/model", encode=encode)
+
+    def judge(params):
+        return {"on_theme": "no" if "BLIND" in params["messages"][0]["content"] else "yes"}
+
+    soul = sorted(r["narrative_id"] for r in tables["narratives"]
+                  if r["description"] == "AIRBAG LIGHT ON")
+    fake = _FakeBatchAPI(judge, fail={f"t1-{soul[0]}"})  # one answer goes missing
+    alerts = verify.run(clean=tmp_path, client=fake)
+    got = {r["model"]: r for r in alerts.to_dict("records")}
+    assert set(got) == {"CAMRY", "FIT", "SOUL"}  # the active signals
+    assert (got["CAMRY"]["on_theme"], got["CAMRY"]["off_theme"]) == (3, 2)
+    assert got["CAMRY"]["status"] == "confirmed"
+    assert (got["FIT"]["on_theme"], got["FIT"]["off_theme"]) == (1, 3)
+    assert got["FIT"]["status"] == "not_confirmed"
+    # 19 on theme and one unanswered: confirmed whatever the missing answer would be.
+    assert (got["SOUL"]["on_theme"], got["SOUL"]["unchecked"]) == (19, 1)
+    assert got["SOUL"]["status"] == "confirmed"
+    # Every complaint was asked once, about its own theme, with the theme described.
+    asked = [r["custom_id"] for r in fake.created[0]]
+    assert len(asked) == len(set(asked)) == 29
+    assert sum(a.startswith("t0-") for a in asked) == 9
+    brake = next(r for r in fake.created[0] if r["custom_id"].startswith("t0-"))
+    assert "Brake pedal sinks" in brake["params"]["messages"][0]["content"]
+    # A rerun asks only for the missing answer.
+    again = _FakeBatchAPI(judge)
+    alerts = verify.run(clean=tmp_path, client=again)
+    assert [r["custom_id"] for r in again.created[0]] == [f"t1-{soul[0]}"]
+    assert alerts.set_index("model").loc["SOUL", "on_theme"] == 20
+
+
+@pytest.mark.parametrize("on, off, unchecked, want", [
+    (3, 2, 0, "confirmed"), (3, 4, 0, "mixed"), (2, 0, 0, "not_confirmed"),
+    (5, 0, 2, "confirmed"),       # whatever the two missing answers say
+    (2, 0, 1, "unchecked"),       # the missing answer decides
+    (0, 9, 2, "not_confirmed"),   # cannot reach three on theme
+])
+def test_alert_status(on, off, unchecked, want):
+    from pipeline.verify import status
+
+    assert status(on, off, unchecked) == want
+
+
+def test_investigator_picks_confirmed_alerts_by_risk(tmp_path: Path):
+    from pipeline import investigate
+
+    (tmp_path / "model").mkdir()
+    pd.DataFrame({
+        "make": ["FORD", "JEEP", "KIA", "HONDA"], "model": ["F-150", "WRANGLER", "SOUL", "FIT"],
+        "model_year": [2024, 2024, 2024, 2024], "theme_id": [41, 120, 7, 3],
+        "risk": [0.41, 0.27, 0.30, None],
+        "status": ["not_confirmed", "confirmed", "confirmed", "confirmed"],
+    }).to_parquet(tmp_path / "model" / "alerts.parquet")
+    got = investigate.top_pairs(tmp_path, n=5)
+    assert [p.model for p in got] == ["SOUL", "WRANGLER"]  # no glare campaign, no unscored
+
+
+def test_batch_results_download_is_retried(monkeypatch):
+    from pipeline import batch
+
+    class ReadTimeout(Exception):
+        pass
+
+    calls = []
+
+    def flaky(client, batch_id):
+        calls.append(batch_id)
+        if len(calls) == 1:
+            raise ReadTimeout("dropped mid-stream")
+        return {"a": {}}, 0
+
+    monkeypatch.setattr(batch, "_read_results", flaky)
+    monkeypatch.setattr(batch.time, "sleep", lambda s: None)
+    assert batch._results(None, "b1") == ({"a": {}}, 0) and len(calls) == 2
+    monkeypatch.setattr(batch, "_read_results",
+                        lambda c, b: (_ for _ in ()).throw(ValueError("bad")))
+    with pytest.raises(ValueError):  # not a network error: no retry
+        batch._results(None, "b1")
+
+
+def test_labelling_survives_an_api_refusal(tmp_path: Path):
+    anthropic = pytest.importorskip("anthropic")
+    from pipeline import batch
+
+    class Broke:
+        class messages:  # noqa: N801
+            class batches:  # noqa: N801
+                @staticmethod
+                def create(requests):
+                    raise anthropic.APIConnectionError(request=None)
+
+    stored = []
+    ok = batch.label_or_warn(Broke(), tmp_path / "state.json", "t",
+                             lambda: [{"custom_id": "a"}], stored.append)
+    assert ok is False and stored == [] and not (tmp_path / "state.json").exists()

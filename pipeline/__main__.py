@@ -10,13 +10,16 @@ from pipeline import (
     embed,
     features,
     ingest,
+    investigate,
     model,
     names,
+    recall_match,
     scrub,
     signals,
     spotcheck,
+    verify,
 )
-from pipeline.config import EMBED_MODEL, NAMING_MODEL
+from pipeline.config import EMBED_MODEL, INVESTIGATE_MODEL, NAMING_MODEL
 
 
 def main() -> None:
@@ -39,11 +42,24 @@ def main() -> None:
     nm = sub.add_parser("name", help="name clusters with Claude via the Batch API (resumable)")
     nm.add_argument("--model", default=NAMING_MODEL)
     nm.add_argument("--no-wait", action="store_true", help="submit or check, then exit")
+    mt = sub.add_parser("match", help="Claude checks which themes each recall covers (Batch API)")
+    mt.add_argument("--model", default=EMBED_MODEL, help="embedding model for recall summaries")
+    mt.add_argument("--llm", default=NAMING_MODEL)
+    mt.add_argument("--no-wait", action="store_true", help="submit or check, then exit")
     sg = sub.add_parser("signals", help="vehicle x theme early-warning signals and backtest")
     sg.add_argument("--model", default=EMBED_MODEL, help="embedding model for recall summaries")
     sub.add_parser("features", help="training table for the recall-risk model")
     sub.add_parser("select", help="compare model feature and parameter sets on earlier folds")
     sub.add_parser("model", help="train, evaluate and score the recall-risk model")
+    vf = sub.add_parser("verify", help="Claude checks the complaints behind current alerts")
+    vf.add_argument("--llm", default=NAMING_MODEL)
+    vf.add_argument("--no-wait", action="store_true", help="submit or check, then exit")
+    iv = sub.add_parser("investigate", help="Claude agent investigates signals (costs money)")
+    iv.add_argument("--top", type=int, default=1, help="the N highest-risk unrecalled pairs")
+    iv.add_argument("--vehicle", help='one pair instead: "MAKE/MODEL/YEAR" with --theme')
+    iv.add_argument("--theme", type=int)
+    iv.add_argument("--llm", default=INVESTIGATE_MODEL, help="Claude model")
+    iv.add_argument("--force", action="store_true", help="rerun even if the evidence is unchanged")
     args = p.parse_args()
 
     if args.cmd == "ingest":
@@ -64,6 +80,8 @@ def main() -> None:
         cluster.run(model_name=args.model, refit=args.refit)
     elif args.cmd == "name":
         names.run(model=args.model, wait=not args.no_wait)
+    elif args.cmd == "match":
+        recall_match.run(model_name=args.model, model=args.llm, wait=not args.no_wait)
     elif args.cmd == "signals":
         signals.run(model_name=args.model)
     elif args.cmd == "features":
@@ -72,6 +90,18 @@ def main() -> None:
         model.select()
     elif args.cmd == "model":
         model.run()
+    elif args.cmd == "verify":
+        verify.run(model=args.llm, wait=not args.no_wait)
+    elif args.cmd == "investigate":
+        pair = None
+        if args.vehicle:
+            # Make first, year last; the model in between may itself contain a slash.
+            make, _, rest = args.vehicle.partition("/")
+            vmodel, _, year = rest.rpartition("/")
+            if not (make and vmodel and year.isdigit()) or args.theme is None:
+                p.error('--vehicle takes "MAKE/MODEL/YEAR" and needs --theme')
+            pair = investigate.Pair(make.upper(), vmodel.upper(), int(year), args.theme)
+        investigate.run(top=args.top, pair=pair, model=args.llm, force=args.force)
 
 
 if __name__ == "__main__":

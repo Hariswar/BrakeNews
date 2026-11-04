@@ -102,3 +102,7 @@ SOURCES = (
 # Claude model that names complaint clusters (Phase 2). A few hundred short labelling requests
 # through the Batch API: Haiku is accurate enough and costs well under a dollar per run.
 NAMING_MODEL = "claude-haiku-5-5"
+
+# Claude model behind the Phase 4 investigator agent (investigate.py): it reads complaint
+# narratives and recall summaries, decides what else to look up, and writes a cited report.
+INVESTIGATE_MODEL = "claude-opus-5-5"
