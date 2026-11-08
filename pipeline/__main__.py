@@ -19,6 +19,7 @@ from pipeline import (
     scrub,
     signals,
     spotcheck,
+    vehicles,
     verify,
 )
 from pipeline.config import EMBED_MODEL, INVESTIGATE_MODEL, NAMING_MODEL, REVIEW_MODEL
@@ -71,7 +72,7 @@ def main() -> None:
     iv.add_argument("--budget", type=float, default=5.0,
                     help="start no new pair once this run has spent this many dollars")
     iv.add_argument("--force", action="store_true", help="rerun even if the evidence is unchanged")
-    sub.add_parser("export", help="publish approved reports on current alerts for the site")
+    sub.add_parser("export", help="site data: approved reports on current alerts, vehicle pages")
     args = p.parse_args()
 
     if args.cmd == "ingest":
@@ -121,6 +122,7 @@ def main() -> None:
             raise SystemExit(1)
     elif args.cmd == "export":
         export.run()
+        vehicles.run()
 
 
 if __name__ == "__main__":

@@ -19,6 +19,10 @@ stays out: tool calls, token usage, the reviewer's issue list, the full dossier.
 narratives are exported. All free text goes through scrub.scrub() once more, as a last guard
 against personal details a quote might carry.
 
+method.json carries the numbers the site's methodology page quotes (data volume, grouping,
+recall matching, the signal backtest, the model's test results, the alert check), so the page
+never hard-codes a number that a rerun changes. Sections whose inputs are missing are null.
+
 The export directory belongs to this step: files of reports that are no longer published are
 removed. Output is sorted and stable, so reruns on unchanged reports give no git diff.
 """
@@ -29,8 +33,10 @@ import json
 import re
 from pathlib import Path
 
-from pipeline.config import CLEAN, ROOT
-from pipeline.investigate import write_index
+import duckdb
+
+from pipeline.config import CLEAN, EMBED_MODEL, INVESTIGATE_MODEL, NAMING_MODEL, REVIEW_MODEL, ROOT
+from pipeline.investigate import PROMPT_VERSION, write_index
 from pipeline.scrub import scrub
 
 SCHEMA_VERSION = 1
@@ -124,6 +130,90 @@ def public_record(rec: dict, slug: str) -> dict:
     }
 
 
+def method_stats(clean: Path = CLEAN) -> dict:
+    """The methodology page's numbers, from the pipeline's own outputs."""
+    con = duckdb.connect()
+
+    def path(name: str) -> str | None:
+        f = clean / name
+        return f.as_posix() if f.exists() else None
+
+    def one(sql: str) -> tuple:
+        return con.sql(sql).fetchall()[0]
+
+    out: dict = {"schema_version": SCHEMA_VERSION,
+                 "models": {"embedding": EMBED_MODEL, "labelling": NAMING_MODEL,
+                            "investigator": INVESTIGATE_MODEL, "reviewer": REVIEW_MODEL}}
+    if c := path("complaints.parquet"):
+        n, first, last = one(f"SELECT count(DISTINCT odi_number), min(received_date), "
+                             f"max(received_date) FROM '{c}'")
+        out["data"] = {"complaints": n, "first_received": first.isoformat()[:7],
+                       "last_received": last.isoformat()[:7]}
+        if r := path("recall_timeline.parquet"):
+            out["data"]["recalls"] = one(f"SELECT count(DISTINCT campaign_id) FROM '{r}'")[0]
+    a, names = path("clusters/assignments.parquet"), path("clusters/names.parquet")
+    t = path("clusters/themes.parquet")
+    if a and names and t:
+        total, grouped, defect = one(f"""
+            SELECT count(*), count(*) FILTER (cluster_id >= 0),
+                   count(*) FILTER (cluster_id IN (SELECT cluster_id FROM '{names}'
+                                                   WHERE kind = 'defect'))
+            FROM '{a}'""")
+        clusters, themes = one(f"""
+            SELECT count(DISTINCT n.cluster_id),
+                   count(DISTINCT t.theme_id) FILTER (n.kind = 'defect')
+            FROM '{names}' n JOIN '{t}' t USING (fit_id, cluster_id)""")
+        out["grouping"] = {"narratives": total, "grouped_share": round(grouped / total, 3),
+                           "defect_share": round(defect / total, 3), "clusters": clusters,
+                           "defect_themes": themes}
+    if lab := path("signals/recall_labels.parquet"):
+        checked, matched = one(f"SELECT count(*), count(*) FILTER (len(theme_ids) > 0) "
+                               f"FROM '{lab}'")
+        out["recall_matching"] = {"checked": checked, "matched_share": round(matched / checked, 3)}
+    if (b := clean / "signals" / "backtest.json").exists():
+        bt = json.loads(b.read_text())
+        out["backtest"] = {
+            "recalled_pairs": bt["recalled pairs with 3+ complaints before the recall"],
+            "flagged_before_recall": bt["share flagged before the recall"],
+            "median_months_ahead": bt["median months flagged ahead of the recall"],
+            "flagged_or_surged_before_recall": bt["share flagged by a signal or a surge before "
+                                                  "the recall"],
+            "signals_judged": bt["signals old enough to judge"],
+            "signal_followed_by_recall": bt["share followed by a covering recall within 24 "
+                                            "months"],
+            "unflagged_followed_by_recall": bt["same share for pairs that reached 3 complaints "
+                                               "without a signal"],
+            "lift": bt["lift"],
+            "surges_judged": bt["surges old enough to judge"],
+            "surge_followed_by_recall": bt["share of surges followed by a covering recall "
+                                           "within 24 months"],
+            "surge_lift": bt["surge lift over pairs without a signal"],
+        }
+    if (m := clean / "model" / "metrics.json").exists():
+        mt = json.loads(m.read_text())
+        test = mt["test"]
+        top = sorted(mt["feature_importance"].items(), key=lambda kv: -kv[1])[:6]
+        out["model"] = {
+            "train_months": mt["train_months"], "validation_months": mt["validation_months"],
+            "test_months": mt["test_months"], "test_rows": test["rows"],
+            "base_rate": round(test["base_rate"], 4),
+            "average_precision": round(test["average_precision"], 3),
+            "prr_average_precision": round(test["prr_average_precision"], 3),
+            "roc_auc": round(test["roc_auc"], 3),
+            "rule_alerts": test["rule_alerts"],
+            "rule_precision": round(test["rule_precision"], 4),
+            "rule_recall": round(test["rule_recall"], 3),
+            "model_precision": round(test["model_precision_at_rule_volume"], 4),
+            "model_recall": round(test["model_recall_at_rule_volume"], 3),
+            "mean_score": round(test["mean_score"], 4),
+            "top_features": [k for k, _ in top], "scored_pairs": mt.get("scored_pairs"),
+        }
+    if al := path("model/alerts.parquet"):
+        out["alerts"] = dict(con.sql(f"SELECT status, count(*) FROM '{al}' GROUP BY 1 "
+                                     f"ORDER BY 1").fetchall())
+    return out
+
+
 def _write(path: Path, data) -> bool:
     text = json.dumps(data, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
     if path.exists() and path.read_text() == text:
@@ -162,6 +252,7 @@ def run(clean: Path = CLEAN, out: Path = SITE_DATA) -> list[dict]:
     published.sort(key=lambda p: (p["risk_rank"] is None, p["risk_rank"], p["slug"]))
     _write(out / "investigations.json", {"schema_version": SCHEMA_VERSION,
                                          "investigations": published})
+    _write(out / "method.json", method_stats(clean))
 
     where = out_dir.relative_to(ROOT) if out_dir.is_relative_to(ROOT) else out_dir
     print(f"[export] {len(published)} reports published -> {where}")
@@ -170,4 +261,28 @@ def run(clean: Path = CLEAN, out: Path = SITE_DATA) -> list[dict]:
         why = (f"review {row.status}" if row.status != "approved"
                else f"alert {row.alert_status or 'gone'}")
         print(f"[export]   held back: {row.slug} ({why})")
+    old = ready[ready["prompt_version"].fillna(0) < PROMPT_VERSION]
+    if len(old):
+        print(f"[export]   {len(old)} published reports predate prompt version {PROMPT_VERSION}: "
+              f"`make investigate TOP=n` redoes them before a deploy")
     return published
+
+
+def check_deploy(clean: Path = CLEAN, out: Path = SITE_DATA) -> None:
+    """Stop a deploy of a site that is not ready: no vehicle pages, or published reports
+    written with an older investigator prompt (they are redone right before publishing)."""
+    problems = []
+    if not any((out / "vehicles").glob("*.json")):
+        problems.append("no vehicle data in site/src/data/vehicles: run `make export`")
+    index = write_index(clean)
+    ready = index[(index["status"] == "approved") & (index["alert_status"] == "confirmed")]
+    old = ready[ready["prompt_version"].fillna(0) < PROMPT_VERSION]
+    if len(old):
+        problems.append(f"{len(old)} published reports predate prompt version {PROMPT_VERSION} "
+                        f"({', '.join(old['slug'])}): run `make investigate TOP=n`, then "
+                        f"`make export`")
+    for p in problems:
+        print(f"[deploy] not ready: {p}")
+    if problems:
+        raise SystemExit(1)
+    print("[deploy] site data ready")

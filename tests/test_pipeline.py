@@ -1277,3 +1277,96 @@ def test_export_publishes_only_approved_reports_on_confirmed_alerts(tmp_path: Pa
     before = (out / "investigations" / files[0]).stat().st_mtime_ns
     export.run(clean=tmp_path, out=out)
     assert (out / "investigations" / files[0]).stat().st_mtime_ns == before
+    method = json.loads((out / "method.json").read_text())
+    assert method["data"]["complaints"] > 0 and method["backtest"]["recalled_pairs"] >= 1
+    assert method["alerts"] == {"confirmed": 2}
+
+    # Deploy check: no vehicle data yet, then ready, then a report from an older prompt.
+    with pytest.raises(SystemExit):
+        export.check_deploy(clean=tmp_path, out=out)
+    (out / "vehicles").mkdir()
+    (out / "vehicles" / "ford--f-150.json").write_text("{}")
+    export.check_deploy(clean=tmp_path, out=out)
+    old = json.loads((reports / "FORD_F-150_2020_t0.json").read_text())
+    old["prompt_version"] = investigate.PROMPT_VERSION - 1
+    (reports / "FORD_F-150_2020_t0.json").write_text(json.dumps(old))
+    with pytest.raises(SystemExit):
+        export.check_deploy(clean=tmp_path, out=out)
+
+
+def test_vehicle_theme_flags_only_confirmed_unrecalled_signals():
+    from pipeline import vehicles
+
+    row = {"theme_id": 3, "complaints": 30, "recent_complaints": 20, "recent_prr": 8.04,
+           "active": True, "surging": True, "onset_month": date(2025, 9, 1),
+           "surge_onset_month": date(2025, 6, 1), "risk": 0.12345, "alert_status": "confirmed"}
+    t = vehicles._theme(row, 120, [])
+    assert t == {"id": 3, "complaints": 30, "share": 0.25, "recent_complaints": 20,
+                 "recent_prr": 8.0, "recall_risk": 0.1235, "flagged": True, "rising": True,
+                 "flagged_since": "2025-06"}
+    # Never checked: counts and risk, no flag. Checked and off-theme: no risk either.
+    unchecked = vehicles._theme({**row, "alert_status": None}, 120, [])
+    assert "flagged" not in unchecked and unchecked["recall_risk"] == 0.1235
+    off = vehicles._theme({**row, "alert_status": "not_confirmed"}, 120, [])
+    assert "flagged" not in off and "recall_risk" not in off
+    # A recall already covers it: listed, not flagged.
+    recalled = vehicles._theme(row, 120, ["25V001000"])
+    assert recalled["recalls"] == ["25V001000"]
+    assert "flagged" not in recalled and "recall_risk" not in recalled
+
+
+def test_vehicle_export(tmp_path: Path):
+    from pipeline import signals, vehicles
+
+    encode = _signal_corpus(tmp_path)
+    # Named themes (cluster = theme) and an older spelling of the CR-V for model year 2018.
+    pq.write_table(pa.table({"fit_id": ["f", "f"], "cluster_id": pa.array([0, 1], pa.int32()),
+                             "name": ["Brakes fail", "Airbag light on"], "summary": ["", ""],
+                             "kind": ["defect", "defect"], "model": ["m", "m"]}),
+                   tmp_path / "clusters" / "names.parquet")
+    pq.write_table(pa.table({"fit_id": ["f", "f"], "cluster_id": pa.array([0, 1], pa.int32()),
+                             "theme_id": pa.array([0, 1], pa.int32()),
+                             "theme_name": ["Brakes fail", "Airbag light on"]}),
+                   tmp_path / "clusters" / "themes.parquet")
+    complaints = pq.read_table(tmp_path / "complaints.parquet").to_pylist()
+    for m in range(1, 13):
+        i = str(1000 + m)
+        complaints.append({**complaints[-1], "complaint_id": i, "odi_number": i, "model": "CR V",
+                           "model_year": 2018, "received_date": date(2019, m, 2)})
+    complaints.append({**complaints[-1], "complaint_id": "2000", "odi_number": "2000",
+                       "make": "UNKNOWN", "model": "UNKNOWN"})
+    pq.write_table(pa.Table.from_pylist(complaints), tmp_path / "complaints.parquet")
+    recalls = pq.read_table(tmp_path / "recalls.parquet").to_pylist()
+    for r in recalls:
+        r.update(consequence_summary="CRASH RISK.", corrective_action="DEALERS WILL FIX IT.",
+                 potentially_affected=10, do_not_drive=False, park_outside=r["make"] == "FORD")
+    pq.write_table(pa.Table.from_pylist(recalls), tmp_path / "recalls.parquet")
+    signals.run(clean=tmp_path, model_name="fake/model", encode=encode)
+    out = tmp_path / "site"
+    (out / "vehicles").mkdir(parents=True)
+    (out / "vehicles" / "old--model.json").write_text("{}")
+
+    index = vehicles.run(clean=tmp_path, out=out, min_complaints=10)
+    files = sorted(f.name for f in (out / "vehicles").glob("*.json"))
+    assert files == ["ford--f-150.json", "honda--accord.json", "honda--civic.json",
+                     "honda--cr-v.json", "honda--pilot.json"]  # stale file gone, no UNKNOWN
+    assert len(index) == 5
+    crv = json.loads((out / "vehicles" / "honda--cr-v.json").read_text())
+    # Two spellings, no shared model year: one page, named after the bigger spelling.
+    assert crv["model"] == "CR-V" and [y["model_year"] for y in crv["years"]] == [2018, 2019]
+    assert [y["nhtsa"] for y in crv["years"]] == [["HONDA", "CR V"], ["HONDA", "CR-V"]]
+    ford = json.loads((out / "vehicles" / "ford--f-150.json").read_text())
+    year = ford["years"][0]
+    assert year["complaints"] == 10 and year["first_received"] == "2020-01"
+    assert year["monthly"] == {"start": "2020-01", "counts": [1] * 10}
+    assert year["recalls"] == ["21V001000"]
+    assert year["themes"][0]["id"] == 0 and year["themes"][0]["recalls"] == ["21V001000"]
+    assert "flagged" not in year["themes"][0]
+    assert ford["recalls"]["21V001000"]["park_outside"] is True
+    assert ford["recalls"]["21V001000"]["remedy"] == "DEALERS WILL FIX IT."
+    themes = json.loads((out / "themes.json").read_text())["themes"]
+    assert themes == {"0": "Brakes fail", "1": "Airbag light on"}
+
+    before = (out / "vehicles" / "ford--f-150.json").stat().st_mtime_ns
+    vehicles.run(clean=tmp_path, out=out, min_complaints=10)
+    assert (out / "vehicles" / "ford--f-150.json").stat().st_mtime_ns == before

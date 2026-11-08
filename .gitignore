@@ -24,6 +24,8 @@ mlartifacts/
 site/node_modules/
 site/dist/
 site/.astro/
+# vehicle page data (~20 MB, rebuilt by `make export`; see pipeline/vehicles.py)
+site/src/data/vehicles/
 
 # OS / editors
 .DS_Store
