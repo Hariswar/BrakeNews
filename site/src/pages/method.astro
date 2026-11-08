@@ -101,8 +101,9 @@ const months = (range: string) =>
       Over the last 24 months: what share of this vehicle's complaints are about the problem, and
       what share of all other vehicles' complaints are? The ratio of the two is the
       proportional reporting ratio (PRR), the method drug-safety agencies use on adverse-event
-      reports. Comparing shares rather than counts cancels what inflates counts without a defect:
-      a popular model, an older vehicle, a year with more complaints overall. A vehicle is flagged
+      reports. Using shares reduces the influence of overall complaint volume, but does not
+      account for vehicles sold, miles driven, vehicle age or differences in reporting.
+      This measures reporting patterns, not failure rates. A vehicle is flagged
       when the problem has at least 3 complaints, the ratio is at least 2, and a chi-square test
       says the difference is unlikely to be chance.
     </p>
@@ -118,9 +119,12 @@ const months = (range: string) =>
     <section aria-labelledby="backtest">
       <h2 id="backtest">4. Track record</h2>
       <p>
-        The tests were run month by month over the whole history, using only the complaints
-        received up to each month, and compared with the recalls that came later.
+        The statistical tests were run month by month using complaints received by each month,
+        then compared with later matched recalls. {data && <>The complaint history runs from {monthLabel(data.first_received)} to {monthLabel(data.last_received)}.</>}
+        This is a retrospective analysis using the current complaint groupings and recall matches,
+        which can be wrong. It is not a prospective validation.
       </p>
+      <p>These figures describe the original statistical flags, before the AI review used to select today’s vehicle-page flags. A vehicle–problem pair means one make, model, model year and complaint theme. Each pair’s first flag is counted once.</p>
       <dl class="tiles">
         <div class="tile">
           <dt>Recalled problems flagged first</dt>
@@ -133,12 +137,12 @@ const months = (range: string) =>
         <div class="tile">
           <dt>How early</dt>
           <dd class="value num">{bt.median_months_ahead} months</dd>
-          <dd class="note">Median time from the first flag to the recall</dd>
+          <dd class="note">Among eligible recalled pairs flagged before the recall</dd>
         </div>
         <div class="tile">
           <dt>Flags followed by a recall</dt>
           <dd class="value num">{percent(bt.signal_followed_by_recall)}</dd>
-          <dd class="note">Within 24 months, of {num(bt.signals_judged)} flags old enough to judge</dd>
+          <dd class="note">Within 24 months, of {num(bt.signals_judged)} first flags with full follow-up</dd>
         </div>
       </dl>
       <CompareBars
@@ -146,15 +150,17 @@ const months = (range: string) =>
         rows={[
           { label: "Surging (vs its own past)", value: bt.surge_followed_by_recall, text: percent(bt.surge_followed_by_recall) },
           { label: "Flagged (vs other vehicles)", value: bt.signal_followed_by_recall, text: percent(bt.signal_followed_by_recall) },
-          { label: "Same number of complaints, never flagged", value: bt.unflagged_followed_by_recall, text: percent(bt.unflagged_followed_by_recall) },
+          { label: "At least 3 complaints, never flagged", value: bt.unflagged_followed_by_recall, text: percent(bt.unflagged_followed_by_recall) },
         ]}
       />
       <p>
-        A flag made a recall about {bt.lift} times as likely as for problems with as many
-        complaints that never stood out; a surge about {bt.surge_lift} times. Most flags are still
-        never followed by a recall. Some are not defects, and many real defects are fixed without a
-        recall. A flag is a reason to look closer, not a prediction.
+        The observed recall rate for flagged pairs was {bt.lift} times the rate for never-flagged
+        pairs that reached at least 3 complaints; for surging pairs it was {bt.surge_lift} times.
+        The comparison groups are not matched for exact complaint count or vehicle exposure.
+        These are historical associations, not evidence that a flag causes a recall.
       </p>
+      <p>Follow-up begins at the first flag (or at the third complaint for never-flagged pairs). Pairs with an earlier covering recall are excluded. Flags less than 24 months old are excluded from the follow-up rate. The detection percentage and follow-up percentage use different groups, so they answer different questions.</p>
+      <p>Most eligible flags were not followed by a matched recall within 24 months. That does not establish whether a defect existed: recalls are only one possible outcome, and recall matching can miss a relevant campaign. None of these figures is a failure probability for an individual vehicle.</p>
     </section>
   )}
 

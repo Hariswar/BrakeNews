@@ -57,7 +57,7 @@ icon and a name, warnings an icon and a label.
 | Sparkline | `components/Sparkline.astro` | 24 months, decorative, with a screen-reader sentence |
 | Vehicle lookup | `components/VehiclePicker.astro` | free-text combobox and guided dropdowns share the vehicle index; arrow keys, Enter and Escape; loading, empty and error states; browse fallback |
 | Vehicle overview | `pages/vehicles/[make]/[model]/[year].astro` | wide layout, source date, linked leading complaints, official recalls and statistical flags; VIN lookup and evidence anchors |
-| System explorer | `components/VehicleSystems.astro` | schematic SVG shortcuts and text buttons use existing category mappings; selected systems show their problems; all evidence remains available without JavaScript |
+| System explorer | `components/VehicleSystems.astro` | schematic numbers match text controls; SVG links reveal, focus and navigate to their category; compact mobile controls and a results shortcut; all evidence remains available without JavaScript |
 | Stepper | `components/Steps.astro` | 4 steps, across from 900px, down below |
 | About-this-data callout | `components/AboutData.astro` | the AI-written / not-reviewed note, visible, not fine print |
 | Icons | `components/Icon.astro` | inline SVG, 24px grid, 2px strokes, `currentColor` |
@@ -66,3 +66,12 @@ Vehicle search logic is in `src/lib/vehicle-search.ts`. Run `npm test` from `sit
 index, ordering and empty-state tests (Node 22.6+ with type stripping). Run `npm run build`
 to validate the exported vehicle pages against the content schemas. Vehicle JSON is generated
 locally by `make export` and is not committed.
+
+Track-record figures must show both detection and 24-month recall follow-up, with their distinct
+denominators. They describe the historical statistical rule before current AI review; they are
+not an individual vehicle's failure probability. The unflagged comparison cohort reached at least
+three complaints; it was not matched to flagged pairs by exact count or exposure. A complaint
+share ratio must never be described as a failure-risk ratio. “First signal” is an onset date,
+not evidence of a continuously active flag. Investigation links identify AI authorship.
+
+The recommendation and asset requirements for any future 3D experiment are in [3D-PILOT.md](3D-PILOT.md).

@@ -13,6 +13,7 @@ const { idPrefix = "pick" } = Astro.props;
 <form class="picker" data-picker action="/vehicles/" aria-label="Look up a vehicle" novalidate>
   <div class="quick-search">
     <label for={`${idPrefix}-search`}>Search by year, make or model</label>
+    <div class="search-field">
     <input
       id={`${idPrefix}-search`} type="search" data-search disabled
       placeholder="Try 2025 Honda Pilot" autocomplete="off" spellcheck="false"
@@ -20,6 +21,7 @@ const { idPrefix = "pick" } = Astro.props;
       aria-controls={`${idPrefix}-results`} aria-describedby={`${idPrefix}-search-status`}
     />
     <ul id={`${idPrefix}-results`} class="search-results" role="listbox" aria-label="Matching vehicles" hidden></ul>
+    </div>
     <p id={`${idPrefix}-search-status`} class="hint" data-search-status role="status" aria-live="polite">Loading vehicle search…</p>
   </div>
   <p class="picker-divider">Or choose step by step</p>
@@ -163,7 +165,13 @@ const { idPrefix = "pick" } = Astro.props;
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         if (results.hidden) showSearch();
-        if (matches.length) setActive((active + (e.key === "ArrowDown" ? 1 : active < 0 ? 0 : -1) + matches.length) % matches.length);
+        if (matches.length) {
+          const direction = e.key === "ArrowDown" ? 1 : -1;
+          const next = active < 0
+            ? (direction === 1 ? 0 : matches.length - 1)
+            : (active + direction + matches.length) % matches.length;
+          setActive(next);
+        }
       }
       if (e.key === "Enter") {
         e.preventDefault();
@@ -185,6 +193,14 @@ const { idPrefix = "pick" } = Astro.props;
       update();
     });
     year.addEventListener("change", update);
+    window.addEventListener("pageshow", (e) => {
+      // Back/Forward may restore this exact form with its submit button still disabled.
+      if (e.persisted) {
+        update();
+        if (index.length) status.textContent = HINT;
+        closeSearch();
+      }
+    });
     form.addEventListener("submit", (e) => {
       e.preventDefault();
       if (!year.value) return;
@@ -196,16 +212,16 @@ const { idPrefix = "pick" } = Astro.props;
 </script>
 
 <style>
-  .quick-search { position: relative; }
+  .search-field { position: relative; margin-top: 6px; }
   .quick-search input {
-    display: block; width: 100%; min-height: 50px; margin-top: 6px;
+    display: block; width: 100%; min-height: 50px;
     padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
     background: var(--surface); color: var(--ink); font: inherit;
   }
   .quick-search input:disabled { background: var(--surface-2); }
   .quick-search input::placeholder { color: var(--ink-3); opacity: 1; }
   .search-results {
-    position: absolute; top: 80px; inset-inline: 0; z-index: 20;
+    position: absolute; top: 100%; inset-inline: 0; z-index: 20;
     max-height: 280px; overflow-y: auto; list-style: none; margin: 0; padding: var(--space-1);
     background: var(--surface); border: 1px solid var(--border-strong);
     border-radius: var(--radius-sm); box-shadow: var(--shadow-md);

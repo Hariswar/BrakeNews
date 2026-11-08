@@ -23,24 +23,24 @@ const bt = method.backtest;
 
 <Base
   title="BrakeNews: car problems and recall risk from owner complaints"
-  description="Which car problems owners are reporting far more than they should, often before a recall exists, with AI-written reports on the strongest signals."
+  description="Explore owner-reported problems, official recalls and unusual complaint patterns for your vehicle, with sources and AI-written investigation reports."
   layout="bare"
 >
   <section class="hero" aria-labelledby="hero-title">
     <div class="container hero-grid">
       <div class="hero-copy">
-        <p class="overline">Early warnings from NHTSA owner complaints</p>
-        <h1 id="hero-title">Car problems owners report, before a recall</h1>
+        <p class="overline">Owner complaints, recalls &amp; early signals</p>
+        <h1 id="hero-title">Understand your car’s reported problems</h1>
         <p class="lead">
-          BrakeNews reads the 1.6 million complaints owners have filed with NHTSA, groups them into
-          specific problems, and flags vehicles where a problem shows up far more often than it does
-          on other vehicles or than it used to. In past data, most problems that were later recalled
-          were flagged this way first, typically more than a year ahead.
+          Look up your vehicle to see what owners report, which official recalls to check,
+          and which complaint patterns stand out. BrakeNews groups public NHTSA reports
+          and links you to the evidence behind each finding.
         </p>
         <ul class="trust" aria-label="About the data">
           <li><Icon name="database" size={16} /> Data: NHTSA complaints &amp; recalls</li>
           {through && <li><Icon name="calendar" size={16} /> Data through {monthLabel(through, true)}</li>}
           <li><Icon name="info" size={16} /> <a href="/method/">How it works</a></li>
+          <li><Icon name="file-check" size={16} /> <a href="/method/#checks">AI-written reports; no human review</a></li>
         </ul>
       </div>
       <div class="lookup panel" id="lookup">
@@ -57,29 +57,35 @@ const bt = method.backtest;
           </>
         ) : (
           <p class="lookup-sub">
-            Vehicle pages are not built in this copy of the site. Run <code>make export</code>, then
-            build the site.
+            Vehicle lookup is temporarily unavailable. You can still <a href="/reports/">browse published reports</a>.
           </p>
         )}
       </div>
     </div>
     {method.data && bt && (
-      <div class="container">
+      <section class="container track-record" aria-labelledby="track-record-title">
+        <h2 id="track-record-title">What the historical flags tell us</h2>
         <dl class="numbers">
           <div>
-            <dt>Complaints read</dt>
-            <dd class="num">{num(method.data.complaints)}</dd>
-          </div>
-          <div>
-            <dt>Later-recalled problems flagged first, in past data</dt>
+            <dt>Later-recalled problems flagged first<span class="number-context">Of {num(bt.recalled_pairs)} vehicle–problem pairs with at least 3 complaints before a matched recall.</span></dt>
             <dd class="num">{percent(bt.flagged_before_recall)}</dd>
           </div>
           <div>
-            <dt>Median warning before the recall</dt>
+            <dt>Flags followed by a recall within 24 months<span class="number-context">Of {num(bt.signals_judged)} first flags with a full 24 months of follow-up.</span></dt>
+            <dd class="num">{percent(bt.signal_followed_by_recall)}</dd>
+          </div>
+          <div>
+            <dt>Median lead time<span class="number-context">Among the later-recalled problems that were flagged before their matched recall.</span></dt>
             <dd class="num">{bt.median_months_ahead} months</dd>
           </div>
         </dl>
-      </div>
+        <p class="track-record-note small">
+          Most historical flags were not followed by a matched recall within 24 months.
+          These figures describe the original statistical rule, before today’s AI review of flags;
+          they are not a probability for your car. Complaint history: {monthLabel(method.data.first_received)}–{monthLabel(method.data.last_received)}.
+          <a href="/method/#backtest">See definitions and limitations <Icon name="arrow-right" size={14} /></a>
+        </p>
+      </section>
     )}
   </section>
 
@@ -231,9 +237,8 @@ const bt = method.backtest;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
     gap: var(--space-3) var(--space-5);
-    margin: var(--space-5) 0 0;
-    padding: var(--space-4) 0 0;
-    border-top: 1px solid var(--border);
+    margin: var(--space-3) 0;
+    padding: 0;
   }
   .numbers div {
     display: flex;
@@ -246,6 +251,11 @@ const bt = method.backtest;
     font-size: var(--text-sm);
     color: var(--ink-2);
   }
+  .track-record { margin-top: var(--space-5); }
+  .track-record h2 { border-top: 1px solid var(--border); padding-top: var(--space-4); margin: 0; font-size: var(--text-lg); }
+  .number-context { display: block; margin-top: var(--space-1); color: var(--ink-3); font-size: var(--text-xs); line-height: 1.5; }
+  .track-record-note { max-width: 100ch; color: var(--ink-2); margin: var(--space-4) 0 0; }
+  .track-record-note a { display: inline-block; margin-left: var(--space-1); }
   .numbers dd {
     margin: 0;
     font-family: var(--font-display-stack);

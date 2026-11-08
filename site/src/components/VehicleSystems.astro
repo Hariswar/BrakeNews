@@ -55,17 +55,20 @@ const hotspots = [
       </button>
       {systems.map((s) => (
         <button type="button" data-system={s.key} aria-controls="system-results" aria-pressed="false" class="system-button">
-          <span class="system-name"><Icon name={s.key} size={18} />{s.label}</span>
-          <span class="system-count">{s.themes.length}</span>
+          <span class="system-name">{hotspots.find((h) => h.key === s.key)
+            ? <span class="system-number" aria-hidden="true">{hotspots.find((h) => h.key === s.key)!.n}</span>
+            : <Icon name={s.key} size={18} />}{s.label}</span>
+          <span class="system-count">{s.themes.length}<span class="sr-only"> listed {s.themes.length === 1 ? "problem" : "problems"}</span></span>
         </button>
       ))}
+      <a class="results-shortcut small" href="#system-results">View selected problems <span aria-hidden="true">↓</span></a>
     </div>
   </div>
-  <div id="system-results" class="system-results">
+  <div id="system-results" class="system-results" tabindex="-1" role="region" aria-label="Problems by vehicle system">
     <p class="small muted" data-system-status role="status" aria-live="polite">Showing all {plural(themes.length, "listed problem")} by system.</p>
     <div class="system-panels">
       {systems.map((s) => (
-        <section id={`system-${s.key}`} data-system-panel={s.key} data-count={s.themes.length} data-label={s.label} aria-labelledby={`system-title-${s.key}`}>
+        <section id={`system-${s.key}`} data-system-panel={s.key} data-count={s.themes.length} data-label={s.label} aria-labelledby={`system-title-${s.key}`} tabindex="-1">
           <h3 id={`system-title-${s.key}`}><Icon name={s.key} size={18} /> {s.label}</h3>
           {s.themes.length ? (
             <ul class="system-problems" role="list">
@@ -114,7 +117,18 @@ const hotspots = [
       status.textContent = panel ? `${panel.dataset.label}: ${panel.dataset.count} listed ${panel.dataset.count === "1" ? "problem" : "problems"}.` : `Showing all ${panels.reduce((total, p) => total + Number(p.dataset.count), 0)} listed problems by system.`;
     };
     for (const control of controls) {
-      control.addEventListener("click", (e) => { e.preventDefault(); select(control.dataset.system!); });
+      control.addEventListener("click", (e) => {
+        // Preserve ordinary link navigation: a car shortcut should take the visitor to
+        // its results and move keyboard focus there, including on a narrow screen.
+        if (control.tagName.toLowerCase() === "a") {
+          const click = e as MouseEvent;
+          if (click.ctrlKey || click.metaKey || click.shiftKey || click.altKey) return;
+          select(control.dataset.system!);
+          panels.find((p) => p.dataset.systemPanel === control.dataset.system)?.focus({ preventScroll: true });
+        } else {
+          select(control.dataset.system!);
+        }
+      });
     }
     // An incoming category link should reveal its panel, including after a previous selection.
     const revealHash = () => {
@@ -158,9 +172,12 @@ const hotspots = [
   .system-button:hover { border-color: var(--link); }
   .system-button[aria-pressed="true"] { background: var(--brand-soft); border-color: var(--link); box-shadow: inset 3px 0 var(--link); }
   .system-name { display: inline-flex; gap: var(--space-2); align-items: center; }
+  .system-number { display: inline-grid; place-items: center; flex: none; width: 20px; height: 20px; border-radius: 50%; background: var(--brand); color: var(--on-brand); font-size: var(--text-xs); }
   .system-count { color: var(--ink-3); font-size: var(--text-xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
   .all-systems { font-weight: 700; }
+  .results-shortcut { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 44px; }
   .system-results { padding: var(--space-4); border-top: 1px solid var(--border); background: var(--surface-2); }
+  .system-results:focus-visible, .system-panels section:focus-visible { outline-offset: -3px; }
   .system-panels { display: grid; gap: var(--space-4); }
   .system-panels section { min-width: 0; }
   .system-panels section[hidden] { display: none; }
@@ -173,5 +190,12 @@ const hotspots = [
   .more-problems summary::before { content: "+"; font-size: var(--text-lg); text-decoration: none; }
   .more-problems[open] summary::before { content: "−"; }
   @media (min-width: 760px) { .systems-layout { grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); } .system-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 759px) {
+    .system-choices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .all-systems, .results-shortcut { grid-column: 1 / -1; }
+    .system-button { padding: 10px 8px; gap: 6px; }
+    .system-name { gap: 6px; }
+  }
   @media (max-width: 400px) { .systems-heading, .systems-layout, .system-results { padding-inline: var(--space-3); } }
+  @media (max-width: 359px) { .system-choices { grid-template-columns: 1fr; } }
 </style>

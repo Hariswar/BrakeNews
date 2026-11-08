@@ -15,7 +15,9 @@ export function searchVehicles(vehicles: SearchVehicle[], query: string, limit =
   if (!tokens.length || limit <= 0) return [];
   const matches: SearchVehicle[] = [];
   for (const vehicle of vehicles) {
-    if (tokens.every((token) => vehicle.terms.includes(token))) matches.push(vehicle);
+    // Owners often omit model punctuation: CRV, F150 and CX5 should find CR-V, F-150 and CX-5.
+    const compact = vehicle.terms.replace(/ /g, "");
+    if (tokens.every((token) => vehicle.terms.includes(token) || compact.includes(token))) matches.push(vehicle);
     if (matches.length >= limit) break;
   }
   return matches;

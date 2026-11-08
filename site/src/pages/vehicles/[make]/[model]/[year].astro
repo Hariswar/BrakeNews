@@ -45,6 +45,7 @@ const MIN_RECENT = 3; // as signals.py: fewer recent complaints make the ratio n
 const recalls = y.recalls.map((id) => ({ id, ...m.recalls[id] })).filter((r) => r.date !== undefined)
   .sort((a, b) => Number(b.do_not_drive || b.park_outside) - Number(a.do_not_drive || a.park_outside) || (b.date ?? "").localeCompare(a.date ?? ""));
 const urgent = recalls.filter((r) => r.do_not_drive || r.park_outside);
+const urgentWarnings = [urgent.some((r) => r.do_not_drive) && "do-not-drive", urgent.some((r) => r.park_outside) && "park-outside"].filter(Boolean);
 
 const severity = [
   plural(y.crashes, "crash", "crashes"),
@@ -56,7 +57,7 @@ const severity = [
 const description =
   `${num(y.complaints)} owner complaints and ${plural(recalls.length, "recall")} for the ${name}` +
   (flagged.length
-    ? `, including ${flagged.length === 1 ? "a problem" : `${flagged.length} problems`} reported far more often than on other vehicles, with no recall yet.`
+    ? `, including ${plural(flagged.length, "flagged complaint pattern")} with no matched recall in this data.`
     : ": what owners report and which problems recalls cover.");
 ---
 
@@ -83,7 +84,7 @@ const description =
     <aside class="callout callout-critical urgent" role="note">
       <Icon name="alert" size={22} />
       <div>
-        <strong class="callout-title">Safety recall with a {urgent.some((r) => r.do_not_drive) ? "do-not-drive" : "park-outside"} warning.</strong>
+        <strong class="callout-title">Recall warnings: {urgentWarnings.join(" and ")}.</strong>
         Check whether your vehicle is affected at <a href="https://www.nhtsa.gov/recalls" rel="noopener">nhtsa.gov/recalls</a> with your VIN.
         See {urgent.map((r, i) => <>{i > 0 && ", "}NHTSA recall #<a href={`#recall-${r.id}`} class="mono">{r.id}</a></>)}.
       </div>
@@ -121,6 +122,11 @@ const description =
       </div>
     </dl>
 
+    <aside class="next-step">
+      <div><strong>Check whether a recall applies to your car</strong><p class="small">A model-year recall may cover only some vehicles. Use your VIN for an individual check, then explore the complaints and evidence below.</p></div>
+      <a class="btn btn-primary" href="https://www.nhtsa.gov/recalls" rel="noopener">Check recalls by VIN <Icon name="arrow-right" size={16} /></a>
+    </aside>
+
     <div class="summary-grid">
       <section class="summary-card panel" aria-labelledby="leading-summary">
         <p class="summary-label"><Icon name="file-check" size={18} /> Owner reports</p>
@@ -149,22 +155,18 @@ const description =
 
       <section class="summary-card panel" aria-labelledby="flagged-summary">
         <p class="summary-label"><Icon name="trend-up" size={18} /> BrakeNews signals</p>
-        <h3 id="flagged-summary">Worth a closer look</h3>
+        <h3 id="flagged-summary">Flagged complaint patterns</h3>
         <p class="small muted">Unusual complaint patterns with no matched recall yet. A flag does not mean a recall will happen.</p>
         {flagged.length ? <ul class="summary-list" role="list">
           {flagged.slice(0, 3).map((t) => <li><div>
             <a href={`#problem-${t.id}`}>{themeName(t.id)}</a>
-            <span class="summary-detail">Flagged{t.flagged_since && ` since ${monthLabel(t.flagged_since)}`}{t.rising && " · Complaints rising"}</span>
-            {reportFor.get(t.id) && <a class="investigation-link" href={`/investigations/${reportFor.get(t.id)!.slug}/`}>Read investigation</a>}
+            <span class="summary-detail">{t.flagged_since ? `First signal: ${monthLabel(t.flagged_since)}` : "Flagged"}{t.rising && " · Recent surge"}</span>
+            {reportFor.get(t.id) && <a class="investigation-link" href={`/investigations/${reportFor.get(t.id)!.slug}/`}>Read AI investigation</a>}
           </div></li>)}
         </ul> : <p class="small muted">No problems currently meet BrakeNews’s flagging criteria. This is not a safety rating.</p>}
         <a class="summary-footer link-arrow" href="/method/">How flags are identified <Icon name="arrow-right" size={16} /></a>
       </section>
     </div>
-    <aside class="next-step">
-      <div><strong>What should I do next?</strong><p class="small">Check your VIN to see whether a recall applies to your particular vehicle, then explore the reported problems and linked evidence.</p></div>
-      <a class="btn btn-primary" href="https://www.nhtsa.gov/recalls" rel="noopener">Check recalls by VIN <Icon name="arrow-right" size={16} /></a>
-    </aside>
     <p class="small muted context-note">Complaint counts reflect reports submitted to NHTSA, not failure rates or a reliability ranking. Reported in these complaints: {severity.join(", ")}.</p>
   </section>
 
@@ -172,7 +174,8 @@ const description =
     <aside class="callout reports">
       <Icon name="file-check" size={22} />
       <div>
-        <strong class="callout-title">{reports.length === 1 ? "Investigation report" : "Investigation reports"}</strong>
+        <strong class="callout-title">{reports.length === 1 ? "AI investigation report" : "AI investigation reports"}</strong>
+        <p class="small">Written and checked by AI, with no human review. <a href="/method/#checks">How reports are made</a>.</p>
         <ul>
           {reports.map((r) => (
             <li><a href={`/investigations/${r.slug}/`}>{r.theme.name}</a>: {r.reading.label.toLowerCase()}</li>
@@ -192,6 +195,7 @@ const description =
 
   <section aria-labelledby="problems">
     <h2 id="problems">Problems owners report</h2>
+    <p class="small muted">Listed groups have at least 3 complaints. The page includes the 20 largest groups plus any additional flagged groups; some complaints are not assigned to a group.</p>
     {y.themes.length === 0 ? (
       <p>None of this vehicle's complaints fall into a specific problem often enough to list.</p>
     ) : (
@@ -203,7 +207,7 @@ const description =
                 <th scope="col">Problem</th>
                 <th scope="col" class="r">Complaints</th>
                 <th scope="col" class="r">Share</th>
-                <th scope="col" class="r"><abbr title="How much more often this vehicle's complaints from the last 24 months are about this problem than other vehicles' complaints are">vs others</abbr></th>
+                <th scope="col" class="r"><abbr title="This problem’s share of this vehicle’s complaints divided by its share of other vehicles’ complaints, over the last 24 months">Share ratio</abbr></th>
                 <th scope="col">Status</th>
               </tr>
             </thead>
@@ -211,7 +215,7 @@ const description =
               {y.themes.map((t) => {
                 const report = reportFor.get(t.id);
                 return (
-                  <tr id={`problem-${t.id}`} class={t.flagged ? "flagged" : undefined}>
+                  <tr id={`problem-${t.id}`} class={t.flagged ? "flagged" : undefined} tabindex="-1">
                     <th scope="row">
                       <span class="pname">
                         <span class="pcat" style={`--c:var(--cat-${categoryOf(t.id)}-fg)`}>
@@ -222,13 +226,13 @@ const description =
                     </th>
                     <td class="r num" data-label="Complaints">{num(t.complaints)}</td>
                     <td class="r num" data-label="Share">{percent(t.share)}</td>
-                    <td class="r num" data-label="vs others">{t.recent_complaints >= MIN_RECENT && t.recent_prr != null ? `${t.recent_prr}×` : "–"}</td>
+                    <td class="r num" data-label="Share ratio">{t.recent_complaints >= MIN_RECENT && t.recent_prr != null ? `${t.recent_prr}×` : "–"}</td>
                     <td class="status">
                       {t.flagged && (
                         <span>
-                          <strong>Flagged</strong>{t.flagged_since && ` since ${monthLabel(t.flagged_since)}`}
-                          {t.rising && ", rising"}
-                          {t.recall_risk != null && <><br /><span class="muted">Estimated recall chance {percent(t.recall_risk)}</span></>}
+                          <strong>BrakeNews flag</strong>{t.flagged_since && ` · First signal: ${monthLabel(t.flagged_since)}`}
+                          {t.rising && " · Recent surge"}
+                          {t.recall_risk != null && <><br /><span class="muted">Model estimate of a matched recall within 24 months: {percent(t.recall_risk)}</span></>}
                           {report && <><br /><a href={`/investigations/${report.slug}/`}>Read the report</a></>}
                         </span>
                       )}
@@ -248,10 +252,12 @@ const description =
           </table>
         </div>
         <p class="small muted">
-          Problems are groups of complaints with the same meaning, formed by AI and approximate. "vs
-          others" compares this vehicle's last 24 months of complaints with other vehicles' (1× is
-          typical; shown from 3 recent complaints). A problem is flagged only when an AI check confirmed the recent complaints are
-          really about it.
+          AI groups complaints by meaning; the groups are approximate. Share ratio compares the
+          problem’s share of this vehicle’s complaints with its share on other vehicles over the
+          last 24 months (shown from 3 recent complaints). A 2× ratio means twice the complaint share,
+          not twice the failure risk. Flags mark unusual shares or recent surges after an AI review
+          of the complaint content. “First signal” does not mean the pattern has persisted continuously.
+          <a href="/method/#model">How recall estimates are calculated</a>.
         </p>
       </>
     )}
@@ -405,7 +411,11 @@ const description =
   }
   @media (max-width: 40rem) {
     .problems thead {
-      display: none;
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
     }
     .problems tr {
       display: grid;
