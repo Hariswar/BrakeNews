@@ -55,7 +55,14 @@ icon and a name, warnings an icon and a label.
 | Trend tag | `components/TrendTag.astro` | per card only when some reports are rising and others are not |
 | Info tooltip | `components/InfoTip.astro` | button + `role="tooltip"`; hover, focus or tap; Escape dismisses; kept in the viewport |
 | Sparkline | `components/Sparkline.astro` | 24 months, decorative, with a screen-reader sentence |
-| Vehicle lookup | `components/VehiclePicker.astro` | loading, error and disabled-until-chosen states; stacks below 640px of its own width |
+| Vehicle lookup | `components/VehiclePicker.astro` | free-text combobox and guided dropdowns share the vehicle index; arrow keys, Enter and Escape; loading, empty and error states; browse fallback |
+| Vehicle overview | `pages/vehicles/[make]/[model]/[year].astro` | wide layout, source date, linked leading complaints, official recalls and statistical flags; VIN lookup and evidence anchors |
+| System explorer | `components/VehicleSystems.astro` | schematic SVG shortcuts and text buttons use existing category mappings; selected systems show their problems; all evidence remains available without JavaScript |
 | Stepper | `components/Steps.astro` | 4 steps, across from 900px, down below |
 | About-this-data callout | `components/AboutData.astro` | the AI-written / not-reviewed note, visible, not fine print |
 | Icons | `components/Icon.astro` | inline SVG, 24px grid, 2px strokes, `currentColor` |
+
+Vehicle search logic is in `src/lib/vehicle-search.ts`. Run `npm test` from `site/` for query,
+index, ordering and empty-state tests (Node 22.6+ with type stripping). Run `npm run build`
+to validate the exported vehicle pages against the content schemas. Vehicle JSON is generated
+locally by `make export` and is not committed.

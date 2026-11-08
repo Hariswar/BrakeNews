@@ -6,10 +6,11 @@ import MonthlyChart from "../../../../components/MonthlyChart.astro";
 import RecallItem from "../../../../components/RecallItem.astro";
 import Crumbs from "../../../../components/Crumbs.astro";
 import Icon from "../../../../components/Icon.astro";
+import VehicleSystems from "../../../../components/VehicleSystems.astro";
 import { categoryLabel, categoryOf } from "../../../../lib/categories";
 import { makeName, modelName, monthLabel, nhtsaVehicleUrl, num, percent, plural, vehicleName } from "../../../../lib/format";
 import {
-  allModels, makeUrl, modelUrl, monthlyList, themeName, yearUrl,
+  allModels, makeUrl, modelUrl, monthlyList, readable, themeName, yearUrl,
   type ModelRecord, type YearRecord,
 } from "../../../../lib/vehicles";
 
@@ -38,9 +39,11 @@ const reports = (await getCollection("investigations"))
   .filter((r) => r.vehicle.make === nhtsaMake && r.vehicle.model === nhtsaModel && r.vehicle.model_year === y.model_year);
 const reportFor = new Map(reports.map((r) => [r.theme.id, r]));
 
-const flagged = y.themes.filter((t) => t.flagged);
+const leading = [...y.themes].sort((a, b) => b.complaints - a.complaints).slice(0, 3);
+const flagged = y.themes.filter((t) => t.flagged).sort((a, b) => b.complaints - a.complaints);
 const MIN_RECENT = 3; // as signals.py: fewer recent complaints make the ratio noise
-const recalls = y.recalls.map((id) => ({ id, ...m.recalls[id] })).filter((r) => r.date !== undefined);
+const recalls = y.recalls.map((id) => ({ id, ...m.recalls[id] })).filter((r) => r.date !== undefined)
+  .sort((a, b) => Number(b.do_not_drive || b.park_outside) - Number(a.do_not_drive || a.park_outside) || (b.date ?? "").localeCompare(a.date ?? ""));
 const urgent = recalls.filter((r) => r.do_not_drive || r.park_outside);
 
 const severity = [
@@ -57,7 +60,7 @@ const description =
     : ": what owners report and which problems recalls cover.");
 ---
 
-<Base title={`${name}: problems, complaints and recalls | BrakeNews`} description={description}>
+<Base title={`${name}: problems, complaints and recalls | BrakeNews`} description={description} layout="wide">
   <Crumbs items={[
     { label: "Vehicles", href: "/vehicles/" },
     { label: makeName(m.make), href: makeUrl(m) },
@@ -65,9 +68,16 @@ const description =
     { label: String(y.model_year) },
   ]} />
 
-  <p class="overline">Vehicle</p>
-  <h1>{name}</h1>
-  <p class="lead sub">What owners report to NHTSA, and which problems a recall covers.</p>
+  <header class="vehicle-header">
+    <p class="overline">Your vehicle report</p>
+    <h1>{name}</h1>
+    <p class="lead sub">The problems owners report. The recalls to check. The evidence behind each.</p>
+    <div class="vehicle-meta small">
+      <span><Icon name="calendar" size={16} /> NHTSA data through {monthLabel(m.data_through, true)}</span>
+      <a href={nhtsaVehicleUrl(v)} rel="noopener">View original NHTSA data <Icon name="arrow-right" size={14} /></a>
+      <a href="/vehicles/">Change vehicle</a>
+    </div>
+  </header>
 
   {urgent.length > 0 && (
     <aside class="callout callout-critical urgent" role="note">
@@ -79,6 +89,84 @@ const description =
       </div>
     </aside>
   )}
+
+  <nav class="report-nav" aria-label="On this vehicle page">
+    <a href="#overview">At a glance</a>
+    <a href="#systems-title">Explore systems</a>
+    <a href="#problems">All problems</a>
+    <a href="#recalls">Recalls</a>
+    <a href="#about">Sources &amp; method</a>
+  </nav>
+
+  <section class="overview" aria-labelledby="overview">
+    <div class="overview-heading">
+      <h2 id="overview">Your vehicle at a glance</h2>
+      <p class="small muted">Complaint patterns and official recall records, kept distinct.</p>
+    </div>
+    <dl class="tiles">
+      <div class="tile">
+        <dt>Owner complaints</dt>
+        <dd class="value num">{num(y.complaints)}</dd>
+        <dd class="note">Received {monthLabel(y.first_received)} to {monthLabel(y.last_received)}</dd>
+      </div>
+      <div class="tile">
+        <dt>Official recalls listed</dt>
+        <dd class="value num"><a href="#recalls">{num(recalls.length)}</a></dd>
+        <dd class="note">Naming this model year; check your VIN for applicability</dd>
+      </div>
+      <div class="tile">
+        <dt>BrakeNews flagged problems</dt>
+        <dd class="value num"><a href="#flagged-summary">{num(flagged.length)}</a></dd>
+        <dd class="note">Statistical signals, not official defect findings or recalls</dd>
+      </div>
+    </dl>
+
+    <div class="summary-grid">
+      <section class="summary-card panel" aria-labelledby="leading-summary">
+        <p class="summary-label"><Icon name="file-check" size={18} /> Owner reports</p>
+        <h3 id="leading-summary">Most reported problems</h3>
+        {leading.length ? <ol class="summary-list ranked" role="list">
+          {leading.map((t, i) => <li>
+            <span class="rank num">{i + 1}</span>
+            <div><a href={`#problem-${t.id}`}>{themeName(t.id)}</a><span class="summary-detail">{plural(t.complaints, "complaint")} · {percent(t.share)} of this vehicle’s complaints</span></div>
+          </li>)}
+        </ol> : <p class="small muted">No specific problem meets this page’s listing criteria.</p>}
+        <a class="summary-footer link-arrow" href="#problems">See all reported problems <Icon name="arrow-right" size={16} /></a>
+      </section>
+
+      <section class="summary-card panel" aria-labelledby="recall-summary">
+        <p class="summary-label"><Icon name="info" size={18} /> Official NHTSA records</p>
+        <h3 id="recall-summary">Recalls to check</h3>
+        {recalls.length ? <ul class="summary-list" role="list">
+          {recalls.slice(0, 2).map((r) => <li><div>
+            <a href={`#recall-${r.id}`}>Recall #{r.id}</a>
+            {(r.do_not_drive || r.park_outside) && <strong class="summary-warning">{[r.do_not_drive && "Do not drive", r.park_outside && "Park outside"].filter(Boolean).join(" · ")}</strong>}
+            <span class="summary-detail recall-excerpt">{readable(r.summary) ?? r.components.join(", ")}</span>
+          </div></li>)}
+        </ul> : <p class="small muted">No recalls naming this model year are listed in this data. This does not establish that your vehicle is free of safety problems.</p>}
+        <a class="summary-footer link-arrow" href="#recalls">View recall details <Icon name="arrow-right" size={16} /></a>
+      </section>
+
+      <section class="summary-card panel" aria-labelledby="flagged-summary">
+        <p class="summary-label"><Icon name="trend-up" size={18} /> BrakeNews signals</p>
+        <h3 id="flagged-summary">Worth a closer look</h3>
+        <p class="small muted">Unusual complaint patterns with no matched recall yet. A flag does not mean a recall will happen.</p>
+        {flagged.length ? <ul class="summary-list" role="list">
+          {flagged.slice(0, 3).map((t) => <li><div>
+            <a href={`#problem-${t.id}`}>{themeName(t.id)}</a>
+            <span class="summary-detail">Flagged{t.flagged_since && ` since ${monthLabel(t.flagged_since)}`}{t.rising && " · Complaints rising"}</span>
+            {reportFor.get(t.id) && <a class="investigation-link" href={`/investigations/${reportFor.get(t.id)!.slug}/`}>Read investigation</a>}
+          </div></li>)}
+        </ul> : <p class="small muted">No problems currently meet BrakeNews’s flagging criteria. This is not a safety rating.</p>}
+        <a class="summary-footer link-arrow" href="/method/">How flags are identified <Icon name="arrow-right" size={16} /></a>
+      </section>
+    </div>
+    <aside class="next-step">
+      <div><strong>What should I do next?</strong><p class="small">Check your VIN to see whether a recall applies to your particular vehicle, then explore the reported problems and linked evidence.</p></div>
+      <a class="btn btn-primary" href="https://www.nhtsa.gov/recalls" rel="noopener">Check recalls by VIN <Icon name="arrow-right" size={16} /></a>
+    </aside>
+    <p class="small muted context-note">Complaint counts reflect reports submitted to NHTSA, not failure rates or a reliability ranking. Reported in these complaints: {severity.join(", ")}.</p>
+  </section>
 
   {reports.length > 0 && (
     <aside class="callout reports">
@@ -94,26 +182,13 @@ const description =
     </aside>
   )}
 
-  <dl class="tiles">
-    <div class="tile">
-      <dt>Complaints</dt>
-      <dd class="value num">{num(y.complaints)}</dd>
-      <dd class="note">Received {monthLabel(y.first_received)} to {monthLabel(y.last_received)}</dd>
-    </div>
-    <div class="tile">
-      <dt>Recalls</dt>
-      <dd class="value num">{num(recalls.length)}</dd>
-      <dd class="note">Safety recalls naming this model year</dd>
-    </div>
-    <div class="tile">
-      <dt>Flagged problems</dt>
-      <dd class="value num">{num(flagged.length)}</dd>
-      <dd class="note">Reported far more than on other vehicles, checked, no recall yet</dd>
-    </div>
-  </dl>
-  <p class="small muted">Reported in these complaints: {severity.join(", ")}.</p>
+  <VehicleSystems themes={y.themes} />
 
-  <MonthlyChart monthly={monthlyList(y.monthly)} through={m.data_through} caption={`Complaints received about the ${name}`} />
+  <section aria-labelledby="complaint-history">
+    <h2 id="complaint-history">Complaint history</h2>
+    <p class="small muted">When NHTSA received these reports. Changes in reporting alone do not establish a change in failure rates.</p>
+    <MonthlyChart monthly={monthlyList(y.monthly)} through={m.data_through} caption={`Complaints received about the ${name}`} />
+  </section>
 
   <section aria-labelledby="problems">
     <h2 id="problems">Problems owners report</h2>
@@ -136,7 +211,7 @@ const description =
               {y.themes.map((t) => {
                 const report = reportFor.get(t.id);
                 return (
-                  <tr class={t.flagged ? "flagged" : undefined}>
+                  <tr id={`problem-${t.id}`} class={t.flagged ? "flagged" : undefined}>
                     <th scope="row">
                       <span class="pname">
                         <span class="pcat" style={`--c:var(--cat-${categoryOf(t.id)}-fg)`}>
@@ -185,7 +260,7 @@ const description =
   <section aria-labelledby="recalls">
     <h2 id="recalls">Recalls</h2>
     {recalls.length === 0 ? (
-      <p>No safety recalls name the {name}.</p>
+      <p>No safety recalls naming the {name} are listed in the data through {monthLabel(m.data_through, true)}. Check your VIN with NHTSA for current information; an empty list is not a safety assessment.</p>
     ) : (
       <ul class="recalls">
         {recalls.map((r) => <RecallItem id={r.id} recall={m.recalls[r.id]} make={nhtsaMake} model={nhtsaModel} />)}
@@ -220,10 +295,43 @@ const description =
       counted once each, however many components they name. Original complaints are on{" "}
       <a href={nhtsaVehicleUrl(v)} rel="noopener">NHTSA's page for the {name}</a>.
     </p>
+    <p>Problem groups are formed by AI and may be approximate. BrakeNews flags unusual complaint patterns; they are not official defect findings. Investigation reports are written and checked by AI, with no human review. Owner reports do not establish that a defect exists.</p>
+    <p><a href="/method/">Read the methodology and track record</a> · <a href="https://www.nhtsa.gov/recalls" rel="noopener">Check current recalls by VIN</a></p>
   </section>
 </Base>
 
 <style>
+  .vehicle-header { padding-block: var(--space-3) var(--space-4); }
+  .vehicle-header h1 { max-width: 24ch; font-size: clamp(2.25rem, 2rem + 2vw, 3.5rem); }
+  .vehicle-meta { display: flex; flex-wrap: wrap; gap: var(--space-2) var(--space-4); color: var(--ink-3); }
+  .vehicle-meta span, .vehicle-meta a { display: inline-flex; align-items: center; gap: 6px; }
+  .report-nav { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); border-block: 1px solid var(--border); padding-block: var(--space-2); margin-bottom: var(--space-5); }
+  .report-nav a { display: inline-flex; align-items: center; min-height: 44px; font-size: var(--text-sm); font-weight: 600; text-decoration: none; }
+  .report-nav a:hover { text-decoration: underline; }
+  .overview-heading h2 { margin: 0 0 var(--space-2); }
+  .tile .value a { text-decoration: none; }
+  .tile .value a:hover { text-decoration: underline; }
+  .summary-grid { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+  .summary-card { padding: var(--space-4); display: flex; flex-direction: column; min-width: 0; }
+  .summary-label { display: flex; align-items: center; gap: var(--space-2); color: var(--ink-3); font-size: var(--text-xs); margin: 0 0 var(--space-2); }
+  .summary-label :global(.icon) { color: var(--link); }
+  .summary-card h3 { font-size: var(--text-xl); margin: 0 0 var(--space-3); }
+  .summary-list { padding: 0; margin: 0 0 var(--space-3); list-style: none; }
+  .summary-list li { padding-block: var(--space-3); border-top: 1px solid var(--border); font-size: var(--text-sm); }
+  .ranked li { display: flex; align-items: flex-start; gap: 12px; }
+  .rank { display: inline-grid; place-items: center; flex: none; width: 28px; height: 28px; border-radius: var(--radius-sm); background: var(--surface-2); color: var(--ink-3); font-weight: 600; }
+  .summary-detail { display: block; color: var(--ink-3); font-size: var(--text-xs); margin-top: var(--space-1); }
+  .recall-excerpt { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .summary-warning { display: block; color: var(--critical); font-size: var(--text-xs); margin-top: var(--space-1); }
+  .summary-footer { margin-top: auto; padding-top: var(--space-2); font-size: var(--text-sm); }
+  .investigation-link { display: inline-block; margin-top: 6px; font-size: var(--text-xs); }
+  .next-step { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); margin-top: var(--space-4); padding: var(--space-4); background: var(--brand-soft); border-radius: var(--radius); }
+  .next-step > div { flex: 1 1 20rem; }
+  .next-step p { color: var(--ink-2); margin: var(--space-1) 0 0; max-width: 65ch; }
+  .context-note { margin-top: var(--space-3); }
+  .problems tr:target { outline: 2px solid var(--link); outline-offset: -2px; background: var(--brand-soft); }
+  @media (min-width: 1000px) { .summary-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 480px) { .summary-card, .next-step { padding: var(--space-3); } .next-step .btn { width: 100%; } }
   .overline {
     margin: 0;
   }

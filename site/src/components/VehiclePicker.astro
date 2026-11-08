@@ -11,6 +11,18 @@ const { idPrefix = "pick" } = Astro.props;
 ---
 
 <form class="picker" data-picker action="/vehicles/" aria-label="Look up a vehicle" novalidate>
+  <div class="quick-search">
+    <label for={`${idPrefix}-search`}>Search by year, make or model</label>
+    <input
+      id={`${idPrefix}-search`} type="search" data-search disabled
+      placeholder="Try 2025 Honda Pilot" autocomplete="off" spellcheck="false"
+      role="combobox" aria-autocomplete="list" aria-expanded="false"
+      aria-controls={`${idPrefix}-results`} aria-describedby={`${idPrefix}-search-status`}
+    />
+    <ul id={`${idPrefix}-results`} class="search-results" role="listbox" aria-label="Matching vehicles" hidden></ul>
+    <p id={`${idPrefix}-search-status`} class="hint" data-search-status role="status" aria-live="polite">Loading vehicle search…</p>
+  </div>
+  <p class="picker-divider">Or choose step by step</p>
   <div class="fields">
     <div class="field">
       <label for={`${idPrefix}-make`}>Make</label>
@@ -48,7 +60,7 @@ const { idPrefix = "pick" } = Astro.props;
 </form>
 
 <script>
-  type Index = [string, string, [string, string, number[]][]][];
+  import { indexVehicles, searchVehicles, type VehicleIndex, type SearchVehicle } from "../lib/vehicle-search";
   const HINT =
     "Opens the vehicle's page: the problems owners report, flags, recalls and any reports.";
 
@@ -57,6 +69,11 @@ const { idPrefix = "pick" } = Astro.props;
     select.disabled = options.length === 0;
   }
 
+  // Share a single request when more than one picker is present.
+  const indexRequest = fetch("/vehicles/index.json").then((r) => {
+    if (!r.ok) throw new Error(String(r.status));
+    return r.json() as Promise<VehicleIndex>;
+  });
   for (const form of document.querySelectorAll<HTMLFormElement>("[data-picker]")) {
     const [make, model, year] = ["make", "model", "year"].map(
       (n) => form.elements.namedItem(n) as HTMLSelectElement,
@@ -64,21 +81,65 @@ const { idPrefix = "pick" } = Astro.props;
     const button = form.querySelector<HTMLButtonElement>("button.go")!;
     const status = form.querySelector<HTMLElement>("[data-status]")!;
     const spinner = form.querySelector<HTMLElement>("[data-spinner]");
-    let index: Index = [];
+    const search = form.querySelector<HTMLInputElement>("[data-search]")!;
+    const results = form.querySelector<HTMLUListElement>(".search-results")!;
+    const searchStatus = form.querySelector<HTMLElement>("[data-search-status]")!;
+    let index: VehicleIndex = [];
+    let searchable: SearchVehicle[] = [];
+    let matches: SearchVehicle[] = [];
+    let active = -1;
+    const closeSearch = () => {
+      results.hidden = true;
+      search.setAttribute("aria-expanded", "false");
+      search.removeAttribute("aria-activedescendant");
+      active = -1;
+      for (const option of results.children) option.setAttribute("aria-selected", "false");
+    };
+    const setActive = (next: number) => {
+      active = next;
+      for (const [i, option] of [...results.children].entries()) option.setAttribute("aria-selected", String(i === active));
+      if (active >= 0) {
+        search.setAttribute("aria-activedescendant", results.children[active].id);
+        results.children[active].scrollIntoView({ block: "nearest" });
+      }
+    };
+    const showSearch = () => {
+      closeSearch();
+      matches = searchVehicles(searchable, search.value);
+      results.replaceChildren(...matches.map((vehicle, i) => {
+        const option = document.createElement("li");
+        option.id = `${results.id}-${i}`;
+        option.setAttribute("role", "option");
+        option.setAttribute("aria-selected", "false");
+        option.textContent = vehicle.label;
+        // Keep focus on the combobox until navigation.
+        option.addEventListener("pointerdown", (e) => e.preventDefault());
+        option.addEventListener("click", () => { location.href = vehicle.href; });
+        return option;
+      }));
+      if (!search.value.trim()) {
+        searchStatus.textContent = "Type a vehicle name. Use ↑ and ↓ to explore matches, then Enter to open.";
+        return;
+      }
+      results.hidden = matches.length === 0;
+      search.setAttribute("aria-expanded", String(matches.length > 0));
+      searchStatus.textContent = matches.length
+        ? `${matches.length === 8 ? "First 8" : matches.length} matching ${matches.length === 1 ? "vehicle" : "vehicles"}. Add a year or model to narrow your search.`
+        : "No matching vehicles in our index. Try another spelling or use the dropdowns. Only vehicles with at least 25 complaints are listed.";
+    };
     const models = () => index.find((m) => m[1] === make.value)?.[2] ?? [];
     const update = () => {
       button.disabled = !year.value;
     };
 
-    fetch("/vehicles/index.json")
-      .then((r) => {
-        if (!r.ok) throw new Error(String(r.status));
-        return r.json();
-      })
-      .then((data: Index) => {
+    indexRequest
+      .then((data) => {
         index = data;
         if (!index.length) throw new Error("empty");
         fill(make, "Choose a make", index.map(([label, slug]) => [label, slug]));
+        searchable = indexVehicles(index);
+        search.disabled = false;
+        searchStatus.textContent = "Type a vehicle name. Use ↑ and ↓ to explore matches, then Enter to open.";
         status.textContent = HINT;
       })
       .catch(() => {
@@ -89,8 +150,29 @@ const { idPrefix = "pick" } = Astro.props;
           " instead.",
         );
         form.classList.add("is-error");
+        search.placeholder = "Vehicle search unavailable";
+        searchStatus.replaceChildren("Couldn't load search. ", Object.assign(document.createElement("a"), { href: "/vehicles/", textContent: "Browse all makes" }), " instead.");
       })
       .finally(() => spinner?.remove());
+
+    search.addEventListener("input", showSearch);
+    search.addEventListener("focus", () => { if (search.value.trim()) showSearch(); });
+    search.addEventListener("blur", closeSearch);
+    search.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") { e.preventDefault(); closeSearch(); return; }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (results.hidden) showSearch();
+        if (matches.length) setActive((active + (e.key === "ArrowDown" ? 1 : active < 0 ? 0 : -1) + matches.length) % matches.length);
+      }
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (results.hidden) showSearch();
+        if (active >= 0) location.href = matches[active].href;
+        else if (matches.length === 1) location.href = matches[0].href;
+        else if (matches.length > 1) setActive(0);
+      }
+    });
 
     make.addEventListener("change", () => {
       fill(model, make.value ? "Choose a model" : "Choose a make first", models().map(([label, slug]) => [label, slug]));
@@ -114,6 +196,25 @@ const { idPrefix = "pick" } = Astro.props;
 </script>
 
 <style>
+  .quick-search { position: relative; }
+  .quick-search input {
+    display: block; width: 100%; min-height: 50px; margin-top: 6px;
+    padding: 10px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+    background: var(--surface); color: var(--ink); font: inherit;
+  }
+  .quick-search input:disabled { background: var(--surface-2); }
+  .quick-search input::placeholder { color: var(--ink-3); opacity: 1; }
+  .search-results {
+    position: absolute; top: 80px; inset-inline: 0; z-index: 20;
+    max-height: 280px; overflow-y: auto; list-style: none; margin: 0; padding: var(--space-1);
+    background: var(--surface); border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm); box-shadow: var(--shadow-md);
+  }
+  .search-results[hidden] { display: none; }
+  .search-results :global(li) { padding: 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--text-sm); }
+  .search-results :global(li:hover), .search-results :global(li[aria-selected="true"]) { background: var(--brand-soft); color: var(--ink); }
+  .picker-divider { display: flex; align-items: center; gap: 12px; margin: var(--space-4) 0 var(--space-3); color: var(--ink-3); font-size: var(--text-xs); }
+  .picker-divider::before, .picker-divider::after { content: ""; height: 1px; flex: 1; background: var(--border); }
   .picker {
     container-type: inline-size;
   }

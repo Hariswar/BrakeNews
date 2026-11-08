@@ -1,0 +1,177 @@
+---
+import { CATEGORIES, categoryOf, type CategoryKey } from "../lib/categories";
+import { num, plural } from "../lib/format";
+import { themeName, type VehicleTheme } from "../lib/vehicles";
+import Icon from "./Icon.astro";
+
+interface Props { themes: VehicleTheme[]; }
+const { themes } = Astro.props;
+const systems = (Object.entries(CATEGORIES) as [CategoryKey, string][]).map(([key, label]) => ({
+  key, label, themes: themes.filter((t) => categoryOf(t.id) === key).sort((a, b) => b.complaints - a.complaints),
+}));
+const hotspots = [
+  { key: "engine", n: 1, x: 117, y: 173 },
+  { key: "brakes", n: 2, x: 152, y: 242 },
+  { key: "steering", n: 3, x: 258, y: 158 },
+  { key: "electrical", n: 4, x: 185, y: 125 },
+  { key: "body", n: 5, x: 428, y: 163 },
+] as const;
+---
+
+<section class="systems panel" aria-labelledby="systems-title" data-systems>
+  <div class="systems-heading">
+    <p class="overline">Explore by system</p>
+    <h2 id="systems-title">Where do owners report problems?</h2>
+    <p class="muted small">Choose an area on the car or a system below to explore the reported problems.</p>
+  </div>
+  <div class="systems-layout">
+    <div class="illustration">
+      <svg viewBox="0 0 600 320" role="group" aria-labelledby="car-title car-description">
+        <title id="car-title">Schematic car with five system shortcuts</title>
+        <desc id="car-description">Generic side view, with the front on the left. Numbered links explore engine, brakes, steering, electrical, and body complaints. Text controls below provide the same choices.</desc>
+        <ellipse cx="300" cy="275" rx="236" ry="12" class="ground" />
+        <path d="M43 229v-37q0-19 24-25l106-24 67-60q13-11 36-11h104q26 0 41 18l54 58 57 19q25 7 25 29v33h-39a57 57 0 0 0-114 0H209a57 57 0 0 0-114 0Z" class="car-body" />
+        <path d="m200 142 56-52h116q19 0 30 14l34 38Z" class="glass" />
+        <path d="M300 90v52m76-52 12 52m-147 12-11 59m158-59 11 59M56 203h44m401-4h42M211 227h182" class="detail" />
+        <path d="M284 161h22m90 0h20" class="detail" />
+        <path d="m52 180 41-9-7 21H49m475-17 17 9v13h-19" class="lights" />
+        {[152, 461].map((x) => <g><circle cx={x} cy="237" r="39" class="tire" /><circle cx={x} cy="237" r="23" class="wheel" /><path d={`M${x} 219v36m-18-18h36m-30-12 24 24m0-24-24 24`} class="spoke" /></g>)}
+        <path d="M108 198h45m-37-8h28m57 40h191" class="detail" />
+        {hotspots.map(({ key, n, x, y }) => (
+          <a href={`#system-${key}`} data-system={key} aria-label={`${n}. ${CATEGORIES[key]}`} class="hotspot">
+            <circle cx={x} cy={y} r="24" class="hotspot-halo" />
+            <circle cx={x} cy={y} r="17" class="hotspot-dot" />
+            <text x={x} y={y} dy=".35em" text-anchor="middle">{n}</text>
+          </a>
+        ))}
+        <text x="49" y="302" class="diagram-label">FRONT</text>
+        <text x="551" y="302" text-anchor="end" class="diagram-label">SCHEMATIC VIEW</text>
+      </svg>
+      <p class="schematic-note small"><Icon name="info" size={16} /> Illustrative only; not this vehicle’s exact design. Areas represent complaint categories, not confirmed defective parts.</p>
+    </div>
+    <div class="system-choices" role="group" aria-label="Explore vehicle systems">
+      <button type="button" data-system="all" aria-controls="system-results" aria-pressed="true" class="system-button all-systems">
+        <span>All systems</span><span class="system-count">{plural(themes.length, "problem")}</span>
+      </button>
+      {systems.map((s) => (
+        <button type="button" data-system={s.key} aria-controls="system-results" aria-pressed="false" class="system-button">
+          <span class="system-name"><Icon name={s.key} size={18} />{s.label}</span>
+          <span class="system-count">{s.themes.length}</span>
+        </button>
+      ))}
+    </div>
+  </div>
+  <div id="system-results" class="system-results">
+    <p class="small muted" data-system-status role="status" aria-live="polite">Showing all {plural(themes.length, "listed problem")} by system.</p>
+    <div class="system-panels">
+      {systems.map((s) => (
+        <section id={`system-${s.key}`} data-system-panel={s.key} data-count={s.themes.length} data-label={s.label} aria-labelledby={`system-title-${s.key}`}>
+          <h3 id={`system-title-${s.key}`}><Icon name={s.key} size={18} /> {s.label}</h3>
+          {s.themes.length ? (
+            <ul class="system-problems" role="list">
+              {s.themes.slice(0, 3).map((t) => (
+                <li>
+                  <a href={`#problem-${t.id}`}>{themeName(t.id)}</a>
+                  <span class="problem-meta">{num(t.complaints)} complaints{t.flagged && " · BrakeNews flag"}{t.recalls.length > 0 && " · Recall linked"}</span>
+                </li>
+              ))}
+            </ul>
+          ) : <p class="small muted">No problems in this category meet this page’s listing criteria. This does not establish that the system is free of problems.</p>}
+          {s.themes.length > 3 && <details class="more-problems">
+            <summary class="small">{plural(s.themes.length - 3, "more problem")}</summary>
+            <ul class="system-problems" role="list">
+              {s.themes.slice(3).map((t) => <li>
+                <a href={`#problem-${t.id}`}>{themeName(t.id)}</a>
+                <span class="problem-meta">{num(t.complaints)} complaints{t.flagged && " · BrakeNews flag"}{t.recalls.length > 0 && " · Recall linked"}</span>
+              </li>)}
+            </ul>
+          </details>}
+        </section>
+      ))}
+    </div>
+  </div>
+  <noscript><p class="small muted">All systems are listed below the illustration. Use the numbered links to jump to a category.</p></noscript>
+</section>
+
+<script>
+  for (const explorer of document.querySelectorAll<HTMLElement>("[data-systems]")) {
+    const panels = [...explorer.querySelectorAll<HTMLElement>("[data-system-panel]")];
+    const controls = [...explorer.querySelectorAll<HTMLElement>("[data-system]")];
+    const status = explorer.querySelector<HTMLElement>("[data-system-status]")!;
+    const select = (key: string) => {
+      for (const panel of panels) {
+        panel.hidden = key !== "all" && panel.dataset.systemPanel !== key;
+        const more = panel.querySelector("details");
+        if (more) more.open = key === panel.dataset.systemPanel;
+      }
+      for (const control of controls) {
+        const selected = control.dataset.system === key;
+        if (control.tagName === "BUTTON") control.setAttribute("aria-pressed", String(selected));
+        else if (selected) control.setAttribute("aria-current", "true");
+        else control.removeAttribute("aria-current");
+      }
+      const panel = panels.find((p) => p.dataset.systemPanel === key);
+      status.textContent = panel ? `${panel.dataset.label}: ${panel.dataset.count} listed ${panel.dataset.count === "1" ? "problem" : "problems"}.` : `Showing all ${panels.reduce((total, p) => total + Number(p.dataset.count), 0)} listed problems by system.`;
+    };
+    for (const control of controls) {
+      control.addEventListener("click", (e) => { e.preventDefault(); select(control.dataset.system!); });
+    }
+    // An incoming category link should reveal its panel, including after a previous selection.
+    const revealHash = () => {
+      const key = location.hash.replace("#system-", "");
+      if (panels.some((p) => p.dataset.systemPanel === key)) select(key);
+    };
+    revealHash();
+    window.addEventListener("hashchange", revealHash);
+  }
+</script>
+
+<style>
+  .systems { margin-block: var(--space-6); overflow: hidden; }
+  .systems-heading { padding: var(--space-4) var(--space-4) 0; }
+  .systems-heading .overline { margin-bottom: var(--space-2); }
+  .systems-heading h2 { margin: 0 0 var(--space-2); font-size: var(--text-2xl); }
+  .systems-layout { display: grid; gap: var(--space-4); padding: 0 var(--space-4) var(--space-4); align-items: center; }
+  .illustration { min-width: 0; }
+  .illustration svg { width: 100%; height: auto; }
+  .ground { fill: var(--surface-2); }
+  .car-body { fill: var(--brand-soft); stroke: var(--link); stroke-width: 2; }
+  .glass { fill: var(--surface); stroke: var(--link); stroke-width: 2; }
+  .detail { fill: none; stroke: var(--link); stroke-width: 2; stroke-linecap: round; opacity: .65; }
+  .lights { fill: var(--surface); stroke: var(--link); stroke-width: 2; }
+  .tire { fill: var(--ink-2); stroke: var(--surface); stroke-width: 5; }
+  .wheel { fill: var(--surface-2); }
+  .spoke { stroke: var(--ink-3); stroke-width: 2; }
+  .diagram-label { fill: var(--ink-3); font: 12px var(--font-body-stack); letter-spacing: 2px; }
+  .hotspot { cursor: pointer; }
+  .hotspot-halo { fill: var(--surface); opacity: .9; }
+  .hotspot-dot { fill: var(--brand); stroke: var(--surface); stroke-width: 2; transition: fill var(--dur) var(--ease); }
+  .hotspot text { fill: var(--on-brand); font: 600 15px var(--font-body-stack); pointer-events: none; }
+  .hotspot:hover .hotspot-dot, .hotspot[aria-current="true"] .hotspot-dot { fill: var(--brand-hover); stroke: var(--link); stroke-width: 4; }
+  .hotspot:focus-visible { outline: none; }
+  .hotspot:focus-visible .hotspot-halo { stroke: var(--focus); stroke-width: 3; }
+  .schematic-note { display: flex; align-items: flex-start; gap: var(--space-2); color: var(--ink-3); margin: 0; }
+  .schematic-note :global(.icon) { margin-top: 4px; }
+  .system-choices { display: grid; gap: var(--space-2); }
+  :global(html:not(.js)) .system-choices { display: none; }
+  .system-button { display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); font: 500 var(--text-sm) / 1.4 var(--font-body-stack); text-align: left; cursor: pointer; transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease); }
+  .system-button:hover { border-color: var(--link); }
+  .system-button[aria-pressed="true"] { background: var(--brand-soft); border-color: var(--link); box-shadow: inset 3px 0 var(--link); }
+  .system-name { display: inline-flex; gap: var(--space-2); align-items: center; }
+  .system-count { color: var(--ink-3); font-size: var(--text-xs); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .all-systems { font-weight: 700; }
+  .system-results { padding: var(--space-4); border-top: 1px solid var(--border); background: var(--surface-2); }
+  .system-panels { display: grid; gap: var(--space-4); }
+  .system-panels section { min-width: 0; }
+  .system-panels section[hidden] { display: none; }
+  .system-panels h3 { display: flex; align-items: center; gap: var(--space-2); font-family: var(--font-body-stack); font-size: var(--text-sm); margin: 0 0 var(--space-2); }
+  .system-problems { list-style: none; margin: 0; padding: 0; }
+  .system-problems li { padding: var(--space-2) 0; border-top: 1px solid var(--border); font-size: var(--text-sm); }
+  .system-problems a { display: inline-block; padding-block: 4px; }
+  .problem-meta { display: block; font-size: var(--text-xs); color: var(--ink-2); }
+  .more-problems summary { color: var(--link); cursor: pointer; min-height: 44px; display: flex; align-items: center; gap: var(--space-2); text-decoration: underline; text-underline-offset: .18em; }
+  .more-problems summary::before { content: "+"; font-size: var(--text-lg); text-decoration: none; }
+  .more-problems[open] summary::before { content: "−"; }
+  @media (min-width: 760px) { .systems-layout { grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); } .system-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 400px) { .systems-heading, .systems-layout, .system-results { padding-inline: var(--space-3); } }
+</style>
