@@ -1,0 +1,178 @@
+{
+  "data_through": "2026-10-01",
+  "failure_pattern": "The tempered glass panel of the panoramic sunroof shatters or 'explodes' at road speed (35 to 65 mph, often on a highway), with a loud bang and no impact, weather event or temperature extreme. The two reports that give a mileage are at low mileage: about 3,000 miles at roughly 2 months of ownership, and about 10,000. In one case it happened 3 weeks after Ford replaced the whole moonroof assembly for a seal leak. A separate, single report describes the rear liftgate glass shattering while parked.",
+  "findings": [
+    {
+      "complaints": [
+        "11730076",
+        "11734759",
+        "11752943",
+        "11756149",
+        "11757224",
+        "11763243",
+        "11765965"
+      ],
+      "text": "Seven independent owners describe the panoramic or moon roof glass shattering without impact while driving, at reported speeds of 35 to 65 mph."
+    },
+    {
+      "complaints": [
+        "11730076",
+        "11734759"
+      ],
+      "text": "Only 2 of the 7 roof-glass complaints give a mileage, and both are at low mileage: about 3,000 miles on a vehicle bought new 1/30/26, and about 10,000 miles."
+    },
+    {
+      "complaints": [
+        "11756149"
+      ],
+      "text": "A replacement assembly failed the same way: Ford replaced the moonroof assembly for a seal leak, and the glass shattered 3 weeks later at 40 mph. If the replacement glass was from the same supplier, this points at the glass or frame design rather than one bad installation."
+    },
+    {
+      "complaints": [
+        "11757224"
+      ],
+      "text": "Highway shattering that frightened the occupants and led to a tow. No impact, collision, extreme temperature or weather was observed."
+    },
+    {
+      "complaints": [
+        "11770804"
+      ],
+      "text": "One owner reports the rear liftgate window shattering while parked. This is a different glass part, so it is weak support for a common cause."
+    },
+    {
+      "complaints": [
+        "11769843",
+        "11762361",
+        "11750000"
+      ],
+      "text": "Off-theme complaints in the window: a hood latch released at 45 mph and the hood broke the windshield (a hood-latch problem, not spontaneous glass failure); a sunroof seal causing wind noise; wipers and power windows that stopped working."
+    },
+    {
+      "complaints": [
+        "11752943",
+        "11734759"
+      ],
+      "text": "One owner cites another owner's complaint. This shows awareness between owners, but the two failures are described independently."
+    }
+  ],
+  "headline": "2026 Ford Explorer: seven owners report the panoramic sunroof glass shattering without impact while driving, all filed within about six months; no recall covers it",
+  "open_questions": [
+    "Who supplies the 2026 Explorer panoramic roof glass, and did the supplier, glass thickness, ceramic frit or frame design change from earlier years? Three earlier model years have active signals at a lower PRR: 2020 (PRR 2.6, 36 recent complaints), 2021 (PRR 3.0, 19 recent) and 2022 (PRR 5.9, 23 recent). The theme has also recurred on the Explorer before, for example 2002 (242 complaints, peak PRR 37.6) and 2017 (121 complaints), with none of those years recalled. A comparison should establish whether the 2026 roof glass failure is particular to this model year or a recurring design weakness.",
+    "Are there more Ford warranty claims for roof glass replacement on 2026 Explorers, and do the failures cluster by build date or plant?",
+    "Was the glass recovered and examined for nickel-sulfide inclusions or edge damage at the frame or bond line? That would tell a glass-material cause from a mounting-stress cause.",
+    "How does the 2026 rate compare per vehicle sold? The theme is common across the industry, so the count of 7 needs exposure data before the PRR can be read as a defect rather than early reporting on a newly launched vehicle.",
+    "The hood-latch release in complaint 11769843 is a separate potential safety issue and should be checked against hood-latch complaints, not this theme."
+  ],
+  "provenance": {
+    "human_reviewed": false,
+    "investigator_model": "claude-opus-5-5",
+    "note": "Written by an AI (Claude) from public NHTSA complaint and recall data, and fact-checked against the cited complaints by a second AI. Not reviewed by a person. It describes what owners report; it is not a finding that a defect exists.",
+    "review": "approved",
+    "reviewer_model": "claude-opus-5-5",
+    "written": "2026-11-08"
+  },
+  "reading": {
+    "confidence": "medium",
+    "key": "emerging_pattern",
+    "label": "Emerging pattern, limited evidence"
+  },
+  "recalls": [
+    {
+      "campaign_id": "26V024000",
+      "note": "2026 Explorer windshield not properly bonded and could detach in a crash (FMVSS 212). Not roof glass breakage.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V730000",
+      "note": "2025-2026 Explorer windshield glass with air bubbles (FMVSS 205). Not shattering.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "26V157000",
+      "note": "2025-2026 Maverick moonroof glass not bonded correctly to the frame and could detach. Same make, roof glass, but detachment rather than shattering.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "21V712000",
+      "note": "2021 Mustang Mach-E panoramic roof glass not properly bonded and could detach.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "21V809000",
+      "note": "2021 Bronco Sport moonroof glass bonding problem that could let the panel detach.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "19V439000",
+      "note": "An aftermarket tempered glass roof hatch on Transit vans could shatter from temperature and vibration stress. This is the closest precedent for spontaneous tempered-glass shattering.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    }
+  ],
+  "safety_risk": "Sudden loud failure at highway speed startles the driver. One owner describes pulling over in fear, and another first thought a tire had blown. Glass can fall on the occupants if the sunshade is open, and fragments can fall onto the road for traffic behind. A broken roof leaves the vehicle hard to drive normally; one was towed. No crashes, injuries or fires have been reported. Every owner who mentions the shade says it was closed.",
+  "schema_version": 1,
+  "signal": {
+    "checked_complaints": 11,
+    "checked_on_theme": 9,
+    "complaints": 11,
+    "complaints_with_injuries": 0,
+    "crashes": 0,
+    "deaths": 0,
+    "fires": 0,
+    "first_received": "2026-04-08",
+    "injured": 0,
+    "last_3_months": 7,
+    "last_3_months_expected": 2.0,
+    "last_received": "2026-10-13",
+    "median_miles": 4600.0,
+    "monthly_complaints": [
+      {
+        "complaints": 2,
+        "month": "2026-04"
+      },
+      {
+        "complaints": 2,
+        "month": "2026-07"
+      },
+      {
+        "complaints": 2,
+        "month": "2026-08"
+      },
+      {
+        "complaints": 3,
+        "month": "2026-09"
+      },
+      {
+        "complaints": 2,
+        "month": "2026-10"
+      }
+    ],
+    "peak_prr": 9.4,
+    "ranked_pairs": 37834,
+    "recall_risk": 0.1609,
+    "recent_complaints": 11,
+    "recent_prr": 9.4,
+    "risk_rank": 9,
+    "signal_since": "2026-07-01",
+    "signalling": true,
+    "surge_since": "2026-09-01",
+    "surging": true,
+    "towed": 2
+  },
+  "slug": "2026-ford-explorer-glass-shatters-or-cracks-without-impact",
+  "summary": "The signal holds 11 complaints, filed April to October 2026, with a PRR of 9.4. It is surging: 7 complaints in the last 3 months against 1.99 expected. I read all 11. Seven describe the same failure: the panoramic sunroof or moonroof glass breaks suddenly with a loud bang while the vehicle is moving at 35 to 65 mph, with no object or impact. The two complaints that report mileage give about 3,000 and 10,000 miles, so these are nearly new vehicles. One more complaint reports the rear liftgate glass shattering while parked. The other three are off-theme: a hood that came open and hit the windshield, sunroof seal wind noise, and wiper and power-window failures. The automatic check counted 9 on-theme; I count 8, because the hood complaint involves an impact. None of the 14 recalls for this model year covers roof glass. The case for a defect is the consistent failure mode in a model year that only started selling recently, and its rate compared with other vehicles. The case is weakened by how common spontaneous panoramic-roof breakage is across the industry: the 2025 Nissan Rogue has 149 recent complaints and the 2019 and 2020 Acura RDX about 110 each. The sample is also small, and most narratives give no mileage, build date or dealer diagnosis. There were no crashes or injuries. In every case where the shade's position is stated, it was closed and kept glass out of the cabin.",
+  "theme": {
+    "id": 12,
+    "name": "Glass shatters or cracks without impact"
+  },
+  "vehicle": {
+    "make": "FORD",
+    "model": "EXPLORER",
+    "model_year": 2026
+  }
+}

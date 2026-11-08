@@ -1,0 +1,200 @@
+{
+  "data_through": "2026-10-01",
+  "failure_pattern": "The van comes to a stop with Auto Idle Stop active, and the engine shuts off as designed. When the brake is released, the engine fails to restart or cranks briefly and dies. The transmission often shifts itself into Park and will not go back into Drive, and the dash shows a message to press the brake and the start switch or shift to Park. Several owners report the battery warning light, clicking, or slow and hesitant cranking. The driver must turn the vehicle fully off and restart it, sometimes after waiting several minutes. One owner reports the engine shut off before the van had fully stopped. The failure is intermittent and repeats for the same owner, and dealers often cannot reproduce it. One dealer replaced the battery as a diagnostic step without confirming the root cause. The evidence points to the Auto Idle Stop restart path: the starter, battery and charging system, or the engine/transmission control software. The tools do not allow a root cause to be named.",
+  "findings": [
+    {
+      "complaints": [
+        "11773429",
+        "11772897",
+        "11771941",
+        "11769672",
+        "11768789",
+        "11765543",
+        "11764598",
+        "11764602",
+        "11763518",
+        "11762021",
+        "11759963",
+        "11750877",
+        "11750598",
+        "11744414",
+        "11743032"
+      ],
+      "text": "Many independent owners describe the same sequence: Auto Idle Stop engages at a stop, the engine does not restart when the brake is released, and a full manual shutdown and restart is needed."
+    },
+    {
+      "complaints": [
+        "11773558",
+        "11773577",
+        "11771941",
+        "11770476",
+        "11768782",
+        "11764598",
+        "11764602",
+        "11764140",
+        "11769584",
+        "11743032"
+      ],
+      "text": "In many complaints the transmission shifts itself into Park and will not return to Drive, so the vehicle cannot be moved or pushed until it is fully restarted."
+    },
+    {
+      "complaints": [
+        "11769584",
+        "11752324",
+        "11743032",
+        "11764140",
+        "11763755",
+        "11773577"
+      ],
+      "text": "Several owners report battery warning lights, clicking, slow cranking, a complete electrical shutdown, or delays of several to 30 minutes before the van would restart. This points to the starting and charging side of the restart."
+    },
+    {
+      "complaints": [
+        "11771941",
+        "11772897",
+        "11768789",
+        "11768782",
+        "11759963"
+      ],
+      "text": "Mileage is low where given (about 6,000, 8,000, 11,900 and under 12,000 miles), and owners report repeat events: up to 7 times in 9 months, and 4 times in one week."
+    },
+    {
+      "complaints": [
+        "11769584",
+        "11764140",
+        "11750598",
+        "11768782"
+      ],
+      "text": "Dealers often could not reproduce the problem. One dealer's engineer saw the failure twice and replaced the battery without confirming the root cause, and two owners say dealers told them of many similar complaints."
+    },
+    {
+      "complaints": [
+        "11773577",
+        "11769584"
+      ],
+      "text": "Two high-exposure events: the engine cut out while the van was still rolling to a stop, and the van rolled into a 4-lane highway lane with a dead engine."
+    },
+    {
+      "complaints": [
+        "11773492",
+        "11773553",
+        "11772892"
+      ],
+      "text": "Three complaints fall outside the core pattern. Two are vague: an engine that will not start after stopping (11773492) and a van that would not turn on and left the owner stuck on an interstate (11773553). The third describes the van shutting fully off at stops, which the owner says is not Auto Idle Stop. That is still an engine shut-off, but it may be a different symptom (11772892)."
+    }
+  ],
+  "headline": "2026 Honda Odyssey: Auto Idle Stop fails to restart the engine at stops, leaving the van shut down and shifted into Park in traffic. The same failure is surging on 2024–2025 Odysseys, and no recall covers it.",
+  "open_questions": [
+    "Root cause has not been identified. Is it the 12V battery or battery sensor, the starter or starter relay, or the idle-stop or shift-by-wire control logic that puts the van in Park? Honda's dealer diagnostic data (DTCs, freeze frames) would settle this.",
+    "One owner says NHTSA Engineering Analysis EA25-004 covers this failure on 2018–2025 Odysseys. None of the tools here cover investigations, so this is unconfirmed. If the investigation exists, the 2026 model year should be added to its scope.",
+    "The 2024 and 2025 Odyssey (50 and 260 complaints) and the 2025 Acura MDX and Honda Ridgeline show the same theme surging. Do they share the idle-stop restart hardware or software, which would call for a single investigation across the platform?",
+    "Has Honda issued a technical service bulletin or software update for Auto Idle Stop restart failures? The tools available cannot show one.",
+    "Is the full shutdown at stops in 11772892, which the owner says is not Auto Idle Stop, a separate fault or the same restart failure reported differently?"
+  ],
+  "provenance": {
+    "human_reviewed": false,
+    "investigator_model": "claude-opus-5-5",
+    "note": "Written by an AI (Claude) from public NHTSA complaint and recall data, and fact-checked against the cited complaints by a second AI. Not reviewed by a person. It describes what owners report; it is not a finding that a defect exists.",
+    "review": "approved",
+    "reviewer_model": "claude-opus-5-5",
+    "written": "2026-11-08"
+  },
+  "reading": {
+    "confidence": "high",
+    "key": "consistent_pattern",
+    "label": "Consistent failure pattern in owner complaints"
+  },
+  "recalls": [
+    {
+      "campaign_id": "23V858000",
+      "note": "Fuel pump failure recall. It covers Odysseys through 2023 only, not 2026, and the failure differs: these complaints describe failure to restart after Auto Idle Stop, not fuel starvation.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "26V332000",
+      "note": "Front passenger seat weight sensor (air bag occupant classification) recall that includes the 2026 Odyssey. It does not involve the engine.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V877000",
+      "note": "Recall of aftermarket wheelchair restraint retractors (Vantage Mobility). It does not involve the engine.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V785000",
+      "note": "2023–2025 Accord Hybrid recall: a software error resets the integrated control module and causes loss of drive power. It shows Honda has fixed control-software stalls by recall before.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "25V031000",
+      "note": "Honda Pilot and Acura Type-S recall: an FI-ECU software error causes engine stall. It is a precedent for a software fix to stalling.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    }
+  ],
+  "safety_risk": "Engine shuts off without warning while stopped in live traffic, at intersections, on exit ramps and on high-speed 4-lane roads. The van cannot move and sometimes cannot be shifted out of Park or pushed. This exposes occupants, often children, to rear-end and cross-traffic collisions. One owner reports an engine cut-out while the van was still rolling and another describes rolling into a highway lane with a dead engine. No crashes or injuries have been reported so far.",
+  "schema_version": 1,
+  "signal": {
+    "checked_complaints": 27,
+    "checked_on_theme": 24,
+    "complaints": 27,
+    "complaints_with_injuries": 0,
+    "crashes": 0,
+    "deaths": 0,
+    "fires": 0,
+    "first_received": "2026-06-09",
+    "injured": 0,
+    "last_3_months": 22,
+    "last_3_months_expected": 4.4,
+    "last_received": "2026-10-25",
+    "median_miles": null,
+    "monthly_complaints": [
+      {
+        "complaints": 2,
+        "month": "2026-06"
+      },
+      {
+        "complaints": 3,
+        "month": "2026-07"
+      },
+      {
+        "complaints": 2,
+        "month": "2026-08"
+      },
+      {
+        "complaints": 7,
+        "month": "2026-09"
+      },
+      {
+        "complaints": 13,
+        "month": "2026-10"
+      }
+    ],
+    "peak_prr": 20.1,
+    "ranked_pairs": 37834,
+    "recall_risk": 0.212,
+    "recent_complaints": 27,
+    "recent_prr": 20.1,
+    "risk_rank": 1,
+    "signal_since": "2026-07-01",
+    "signalling": true,
+    "surge_since": "2026-07-01",
+    "surging": true,
+    "towed": 0
+  },
+  "slug": "2026-honda-odyssey-engine-suddenly-shuts-off-while-driving",
+  "summary": "I read all 27 complaints in the window. About 24 describe the same failure in detail. The van stops at a light or in traffic, and Auto Idle Stop shuts the engine off as designed. When the driver releases the brake, the engine does not restart. In many cases the transmission shifts itself into Park and the dash tells the driver to press the brake and the start switch, which often does not work. The driver has to switch the vehicle fully off and restart it. Sometimes the restart takes from about 20 seconds to 30 minutes. Of the other 3 complaints, 2 are too vague to tell whether Auto Idle Stop was involved (11773492, 11773553). The third (11772892) describes the van shutting fully off at stops, which the owner says is not Auto Idle Stop. The complaints come from independent owners, are all low-mileage (where mileage is given, about 6,000–12,000 miles), and many describe repeat events. Filings are rising: 2, 3, 2, 7 and then 13 a month from June to October 2026. The PRR is 20.1, with 22 complaints in the last 3 months against 4.4 expected. The 2024 and 2025 model years show the same surge (50 and 260 complaints, PRR 19.8 and 28.7), so the problem appears to carry across the current generation of the van rather than being a 2026 build issue. There have been no crashes, injuries, fires or tows. No 2026 Odyssey recall covers stalling: the two recalls for this model year deal with an air bag seat sensor and aftermarket wheelchair restraints. The fuel pump recall 23V858000 applies to earlier model years only and describes a different mechanism.",
+  "theme": {
+    "id": 70,
+    "name": "Engine suddenly shuts off while driving"
+  },
+  "vehicle": {
+    "make": "HONDA",
+    "model": "ODYSSEY",
+    "model_year": 2026
+  }
+}

@@ -1,0 +1,162 @@
+{
+  "data_through": "2026-10-01",
+  "failure_pattern": "2025 Wrangler 4xe driven in Electric mode, typically with substantial battery charge (one owner says below 50%). Under normal-to-moderate demand (merging, pulling out, small hills, highway driving), electric drive power hesitates or drops, in the detailed reports in steps (about 50%, then 25%). 'Electric Mode Temporarily Unavailable' appears, and the gas engine starts after a noticeable delay, sometimes abruptly at high revs. During that gap the vehicle does not respond to the accelerator. No fault codes are stored. It repeats, in one report almost daily. Separately, one October 2025 complaint (11693121) describes repeated power loss and restart prompts right after an OTA update, matching recall 25V710000. A second power-loss report from the same date (11693027) probably belongs with it.",
+  "findings": [
+    {
+      "complaints": [
+        "11693121",
+        "11693027"
+      ],
+      "text": "11693121 describes repeated power loss, a check-engine light and 'shift into park to restart' prompts beginning 11 Oct 2025, the first drive after an OTA software update. This matches the defect in recall 25V710000. 11693027 reports a single abrupt power loss with a check-engine light on the same date but mentions no OTA update or restart prompts. Its link to 25V710000 is probable from the date alone."
+    },
+    {
+      "complaints": [
+        "11726552",
+        "11747685"
+      ],
+      "text": "Electric power is reduced in stages (about 50%, then 25%), then Electric mode is disabled and the engine takes over after a delay, at battery charge levels including 41%, 73% and 81%. No fault codes were found. Both owners say the dealer reproduced it on their vehicle and on another 4xe and found no repair; 11747685 says the vehicle was returned as 'operating as designed'. The wording is very similar, so these may be the same owner."
+    },
+    {
+      "complaints": [
+        "11765157",
+        "11768376",
+        "11765180",
+        "11765357",
+        "11698376"
+      ],
+      "text": "Two other owners describe the full sequence in Electric mode: hesitation or a near-dead accelerator, 'electric mode unavailable' or a fallback to hybrid, and a delayed or abrupt high-rev engine start, at 75% and 35% charge. Three less specific complaints describe failure to accelerate when charge falls below 50% (11765180), lag and hesitation in Electric mode (11765357), and random power loss mid-acceleration, 'usually' under electric power (11698376)."
+    },
+    {
+      "complaints": [
+        "11770231"
+      ],
+      "text": "One owner dates the onset of sluggish electric propulsion and delayed, jerky engine engagement to the software update from the high-voltage battery recall (owner cites 68C / 25V741). This suggests the battery recall remedy may limit battery discharge, but it has not been verified."
+    },
+    {
+      "complaints": [
+        "11768376"
+      ],
+      "text": "An avoidance event: at 30 mph with 35% charge, the vehicle hesitated before the engine started while the driver tried to swerve and accelerate away from a car backing out of a driveway."
+    }
+  ],
+  "headline": "2025 Wrangler: owners of the 4xe report electric drive power fading, sometimes in steps, then a delay before the gas engine takes over. One October 2025 report (and probably a second) matches OTA recall 25V710000, which the automatic matching missed",
+  "open_questions": [
+    "Is the staged electric-power reduction and delayed engine start an intended battery or thermal power limit, or a calibration fault? Data logs of high-voltage battery discharge limits, as the owners request, would settle it.",
+    "Did the 25V741000 battery recall remedy change discharge limits or the timing of the handoff to the gas engine? Do complaint dates track remedy completion?",
+    "Was 11693027's 11 Oct 2025 event caused by the 25V710000 OTA software, or by something else such as the 25V766000 engine-debris failure?",
+    "Should the scope of 25V710000 be checked against 2025 VINs reporting similar loss of drive power? One owner says their vehicle is outside the recall population.",
+    "Are 11726552 and 11747685 from the same owner? The wording is nearly identical, including the second-vehicle dealer reproduction.",
+    "The 2023 and 2024 Wranglers show the same surging theme (30 and 62 complaints). Do they describe the same Electric-mode fade? If so, the problem spans 2023–2025 4xe vehicles.",
+    "One owner cites an ODI review, RQ24012. I could not verify its status or scope with these tools."
+  ],
+  "provenance": {
+    "human_reviewed": false,
+    "investigator_model": "claude-opus-5-5",
+    "note": "Written by an AI (Claude) from public NHTSA complaint and recall data, and fact-checked against the cited complaints by a second AI. Not reviewed by a person. It describes what owners report; it is not a finding that a defect exists.",
+    "review": "approved",
+    "reviewer_model": "claude-opus-5-5",
+    "written": "2026-11-08"
+  },
+  "reading": {
+    "confidence": "medium",
+    "key": "emerging_pattern",
+    "label": "Emerging pattern, limited evidence"
+  },
+  "recalls": [
+    {
+      "campaign_id": "25V710000",
+      "note": "2023–2025 Wrangler 4XE, software error in an OTA update may cause loss of drive power. It covers the OTA event in 11693121 and probably 11693027 (same date, but no OTA detail). It does not cover the later Electric-mode power-fade complaints. The vehicle_recalls tool does not list it for this vehicle; it is filed under 'WRANGLER 4XE'.",
+      "relation": "covers_this_problem",
+      "relation_label": "Covers this problem"
+    },
+    {
+      "campaign_id": "25V741000",
+      "note": "High-voltage battery internal failure / fire recall for 2020–2025 Wrangler 4xe. It does not address loss of drive power, but one owner says its software remedy brought on the power fade (11770231).",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V766000",
+      "note": "2024–2025 Wrangler 4XE engine debris causing engine failure and loss of drive power. None of the complaints clearly describe engine failure, but it could explain the non-specific single event in 11693027.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V576000",
+      "note": "2022–2026 Grand Cherokee PHEV: a software error in the hybrid control processor may cause loss of drive power. Same maker and a similar PHEV hybrid-control setup.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "26V363000",
+      "note": "Fire risk from the power steering pump wiring.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    }
+  ],
+  "safety_risk": "The gap in propulsion happens exactly when power is needed: merging, crossing or pulling into traffic, passing, and evasive moves. Owners say they were left in oncoming traffic, and one had to accelerate to avoid a car backing out of a driveway when the vehicle hesitated. No crashes, fires, injuries or tows were reported in these 10 complaints. In the OTA-related October 2025 event, the owner also reported losing brake and steering assist along with engine power.",
+  "schema_version": 1,
+  "signal": {
+    "checked_complaints": 10,
+    "checked_on_theme": 10,
+    "complaints": 10,
+    "complaints_with_injuries": 0,
+    "crashes": 0,
+    "deaths": 0,
+    "fires": 0,
+    "first_received": "2025-10-13",
+    "injured": 0,
+    "last_3_months": 5,
+    "last_3_months_expected": 0.9,
+    "last_received": "2026-10-09",
+    "median_miles": null,
+    "monthly_complaints": [
+      {
+        "complaints": 2,
+        "month": "2025-10"
+      },
+      {
+        "complaints": 1,
+        "month": "2025-11"
+      },
+      {
+        "complaints": 1,
+        "month": "2026-03"
+      },
+      {
+        "complaints": 1,
+        "month": "2026-07"
+      },
+      {
+        "complaints": 3,
+        "month": "2026-09"
+      },
+      {
+        "complaints": 2,
+        "month": "2026-10"
+      }
+    ],
+    "peak_prr": 18.2,
+    "ranked_pairs": 37834,
+    "recall_risk": 0.152,
+    "recent_complaints": 10,
+    "recent_prr": 18.2,
+    "risk_rank": 13,
+    "signal_since": "2025-11-01",
+    "signalling": true,
+    "surge_since": "2025-11-01",
+    "surging": true,
+    "towed": 0
+  },
+  "slug": "2025-jeep-wrangler-vehicle-suddenly-loses-engine-power-at-speed",
+  "summary": "I read all 10 complaints in the window. All report a real loss of drive power, and nine explicitly describe the 4xe plug-in hybrid or its Electric mode. They split into two groups. (1) Two complaints filed 13 Oct 2025 describe power loss beginning on 11 Oct 2025. Only 11693121 describes an over-the-air (OTA) software update, repeated events and 'shift into park to restart' prompts. That matches recall 25V710000 (17 Oct 2025, 2023–2025 Wrangler 4XE: 'a software error in an OTA update may result in a loss of drive power'). 11693027 describes one abrupt power loss followed by a check-engine light on the same date. It mentions no OTA update, no restart prompts and not the 4xe. Its link to 25V710000 is probable from the matching date, not established, and other causes such as engine-failure recall 25V766000 cannot be ruled out. The vehicle_recalls tool does not list 25V710000 for this vehicle, apparently because it is filed under the model name 'WRANGLER 4XE', so the automatic recall check missed it. (2) The other eight complaints (Oct 2025 – Oct 2026) report loss or hesitation of power, mostly in Electric mode. The most detailed ones describe electric power fading or dropping in steps (to about 50%, then 25%), an 'Electric Mode Temporarily Unavailable' message, and a delayed, sometimes abrupt high-rev engine start while the accelerator gives little response. Where owners give a charge level, it is mostly substantial (35–81%), but one ties the problem to charge below 50%. Several of these complaints are less specific and describe only lag, hesitation or random power loss. Two owners say a dealer reproduced the problem on their vehicle and on a second 4xe, with no fault codes; one quotes the vehicle being returned as 'operating as designed'. One owner links the onset to the software from high-voltage battery recall 25V741000. No recall I found covers this group. The same theme is also surging on the 2024 (62 complaints) and 2023 (30 complaints) Wranglers, which supports a problem across model years in the 4xe's hybrid control or battery power-limit calibration. The case is held back by the small count, uneven detail, no crashes, injuries or tows, no mileage data, and the possibility that this is an intended battery power limit rather than a fault. The two dealer-reproduction complaints are also so alike that they may come from the same owner.",
+  "theme": {
+    "id": 120,
+    "name": "Vehicle suddenly loses engine power at speed"
+  },
+  "vehicle": {
+    "make": "JEEP",
+    "model": "WRANGLER",
+    "model_year": 2025
+  }
+}

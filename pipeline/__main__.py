@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from pipeline import (
     clean,
     cluster,
     embed,
+    export,
     features,
     ingest,
     investigate,
@@ -19,10 +21,11 @@ from pipeline import (
     spotcheck,
     verify,
 )
-from pipeline.config import EMBED_MODEL, INVESTIGATE_MODEL, NAMING_MODEL
+from pipeline.config import EMBED_MODEL, INVESTIGATE_MODEL, NAMING_MODEL, REVIEW_MODEL
 
 
 def main() -> None:
+    sys.stdout.reconfigure(line_buffering=True)  # progress shows up even when redirected
     p = argparse.ArgumentParser(prog="brakenews")
     sub = p.add_subparsers(dest="cmd", required=True)
     i = sub.add_parser("ingest", help="download NHTSA files and convert to Parquet")
@@ -54,12 +57,21 @@ def main() -> None:
     vf = sub.add_parser("verify", help="Claude checks the complaints behind current alerts")
     vf.add_argument("--llm", default=NAMING_MODEL)
     vf.add_argument("--no-wait", action="store_true", help="submit or check, then exit")
-    iv = sub.add_parser("investigate", help="Claude agent investigates signals (costs money)")
-    iv.add_argument("--top", type=int, default=1, help="the N highest-risk unrecalled pairs")
+    iv = sub.add_parser("investigate",
+                        help="Claude agents investigate and fact-check signals (costs money)")
+    iv.add_argument("--top", type=int, default=1,
+                    help="the N highest-risk confirmed alerts")
     iv.add_argument("--vehicle", help='one pair instead: "MAKE/MODEL/YEAR" with --theme')
     iv.add_argument("--theme", type=int)
-    iv.add_argument("--llm", default=INVESTIGATE_MODEL, help="Claude model")
+    iv.add_argument("--llm", default=INVESTIGATE_MODEL, help="investigator's Claude model")
+    iv.add_argument("--review-llm", default=REVIEW_MODEL, help="reviewer's Claude model")
+    iv.add_argument("--no-review", action="store_true", help="skip the fact-checking reviewer")
+    iv.add_argument("--workers", type=int, default=investigate.WORKERS,
+                    help="pairs investigated at once")
+    iv.add_argument("--budget", type=float, default=5.0,
+                    help="start no new pair once this run has spent this many dollars")
     iv.add_argument("--force", action="store_true", help="rerun even if the evidence is unchanged")
+    sub.add_parser("export", help="publish approved reports on current alerts for the site")
     args = p.parse_args()
 
     if args.cmd == "ingest":
@@ -101,7 +113,14 @@ def main() -> None:
             if not (make and vmodel and year.isdigit()) or args.theme is None:
                 p.error('--vehicle takes "MAKE/MODEL/YEAR" and needs --theme')
             pair = investigate.Pair(make.upper(), vmodel.upper(), int(year), args.theme)
-        investigate.run(top=args.top, pair=pair, model=args.llm, force=args.force)
+        results = investigate.run(
+            top=args.top, pair=pair, model=args.llm, force=args.force,
+            review_model=None if args.no_review else args.review_llm, workers=args.workers,
+            budget=args.budget)
+        if any("error" in r for r in results):
+            raise SystemExit(1)
+    elif args.cmd == "export":
+        export.run()
 
 
 if __name__ == "__main__":

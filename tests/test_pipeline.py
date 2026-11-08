@@ -684,7 +684,18 @@ class _FakeClaude:
 
     def __init__(self, script):
         self.script, self.calls = list(script), []
-        self.beta = SimpleNamespace(messages=SimpleNamespace(create=self._create))
+        self.beta = SimpleNamespace(messages=SimpleNamespace(stream=self._stream))
+
+    def _stream(self, **kwargs):
+        resp = self._create(**kwargs)
+
+        class Stream:
+            def __enter__(self):
+                return SimpleNamespace(get_final_message=lambda: resp)
+
+            def __exit__(self, *exc):
+                return False
+        return Stream()
 
     def _create(self, **kwargs):
         self.calls.append(kwargs)
@@ -719,10 +730,12 @@ def test_investigator_reads_evidence_checks_citations_and_caches(tmp_path: Path)
          use("t2", "vehicle_recalls", {}), use("t3", "drop_tables", {}),
          use("t4", "theme_recalls", {"limit": 5}), use("t5", "compare_model_years", {}),
          use("t6", "other_vehicles_with_theme", {"limit": 5})],
-        _report(["0", "999"], ["21V001000", "99V999000"]),  # one complaint, one recall made up
-        _report(["0", "1"]),
+        # A made-up complaint and recall, and a real complaint no tool showed it (newest first:
+        # the search returned 9, 8 and 7).
+        _report(["9", "999", "0"], ["21V001000", "99V999000"]),
+        _report(["9", "8"]),
     ])
-    rec = investigate.run(clean=tmp_path, pair=pair, client=fake)[0]
+    rec = investigate.run(clean=tmp_path, pair=pair, client=fake, review_model=None)[0]
 
     first = fake.calls[0]
     assert first["output_config"]["format"]["schema"] == investigate.REPORT_SCHEMA
@@ -745,8 +758,11 @@ def test_investigator_reads_evidence_checks_citations_and_caches(tmp_path: Path)
     # The made-up citations were sent back once, then the corrected report passed.
     revise = fake.calls[2]["messages"][-1]["content"]
     assert "999" in revise and "99V999000" in revise and "21V001000" not in revise
+    assert "never returned by a tool; read them (search_complaints) before citing them, or " \
+           "drop them: 0" in revise
     assert rec["check"] == {"passed": True, "problems": [], "revisions": 1}
-    assert rec["report"]["evidence"][0]["complaint_ids"] == ["0", "1"]
+    assert rec["report"]["evidence"][0]["complaint_ids"] == ["9", "8"]
+    assert rec["status"] == "unreviewed" and rec["review"]["rounds"] == 0
     assert [c["name"] for c in rec["tool_calls"]][:3] == [
         "search_complaints", "vehicle_recalls", "drop_tables"]
     saved = tmp_path / "investigations" / "FORD_F-150_2020_t0.json"
@@ -754,8 +770,258 @@ def test_investigator_reads_evidence_checks_citations_and_caches(tmp_path: Path)
 
     # Same evidence: skipped without calling the model.
     again = _FakeClaude([])
-    assert investigate.run(clean=tmp_path, pair=pair, client=again)[0]["created"] == rec["created"]
+    assert investigate.run(clean=tmp_path, pair=pair, client=again,
+                           review_model=None)[0]["created"] == rec["created"]
     assert again.calls == []
+
+
+def _use(i, name, args):
+    return SimpleNamespace(type="tool_use", id=i, name=name, input=args)
+
+
+def _search(i="s", limit=5):
+    return _use(i, "search_complaints", {"keyword": "", "severe_only": False, "limit": limit,
+                                         "offset": 0})
+
+
+def _review(verdict, checks, issues=(), assessment="likely_defect"):
+    return [SimpleNamespace(type="text", text=json.dumps({
+        "verdict": verdict, "assessment": assessment, "confidence": "medium",
+        "finding_checks": [{"finding_number": i, "support": s, "note": f"note {i}"}
+                           for i, s in checks],
+        "issues": [{"severity": sev, "issue": text, "fix": "fix it", "complaint_ids": ids}
+                   for sev, text, ids in issues],
+        "summary": "review summary"}))]
+
+
+def test_reviewer_fact_checks_the_report_and_sends_issues_back(tmp_path: Path):
+    pytest.importorskip("langgraph")
+    from pipeline import investigate, signals
+
+    signals.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    pair = investigate.Pair("FORD", "F-150", 2020, 0)
+    revised = _report(["9", "7"])
+    payload = json.loads(revised[0].text)
+    payload["assessment"] = "possible_defect"
+    payload["evidence"].append({"finding": "second", "complaint_ids": ["9"]})
+    revised[0].text = json.dumps(payload)
+    fake = _FakeClaude([
+        [_search()],                      # investigator reads 9, 8, 7, 6, 5
+        _report(["9", "8"]),              # first draft passes the citation check
+        [_use("r1", "vehicle_recalls", {})],
+        # The reviewer checks a finding that does not exist and cites a made-up complaint...
+        _review("approved", [(0, "supported"), (3, "supported")],
+                [("minor", "bad cite", ["999"])]),
+        # ...fixes that, and asks for a revision.
+        _review("approved", [(0, "partly_supported")],
+                [("major", "complaint 7 contradicts finding 0", ["7"])],
+                assessment="possible_defect"),
+        revised,                          # investigator revises (7 was read through a tool)
+        _review("approved", [(0, "supported"), (1, "supported")],
+                assessment="possible_defect"),
+    ])
+    rec = investigate.run(clean=tmp_path, pair=pair, client=fake)[0]
+    assert fake.script == []
+
+    # The reviewer has a conversation of its own: the dossier, the numbered report and the
+    # cited complaints in full; not the investigator's messages.
+    first_review = fake.calls[2]
+    assert first_review["system"] == investigate.REVIEW_SYSTEM
+    assert first_review["output_config"]["format"]["schema"] == investigate.REVIEW_SCHEMA
+    assert len(first_review["messages"]) == 1
+    brief = first_review["messages"][0]["content"]
+    assert brief.startswith("Fact-check this report.")
+    report_shown = json.loads(brief.split("Report (JSON):\n", 1)[1].split("\n\nCited", 1)[0])
+    assert report_shown["evidence"][0]["finding_number"] == 0
+    cited = json.loads(brief.split("Cited complaints (JSON, full narratives):\n", 1)[1])
+    assert [c["odi_number"] for c in cited] == ["9", "8"]
+    assert cited[0]["narrative"] == "THE BRAKE PEDAL WENT TO THE FLOOR"
+    # Its own mistakes went back to it once.
+    fix = fake.calls[4]["messages"][-1]["content"]
+    assert "there is no finding 3" in fix and "999" in fix
+    # The issues went to the investigator, in its own conversation.
+    feedback = fake.calls[5]["messages"][-1]["content"]
+    assert fake.calls[5]["system"] == investigate.SYSTEM
+    assert "Finding 0 is partly supported: note 0" in feedback
+    assert "[major] complaint 7 contradicts finding 0 (complaints 7)" in feedback
+    assert "would assess this as possible_defect" in feedback
+    # The second review sees the revised report and only the newly cited complaint.
+    second = fake.calls[6]["messages"]
+    assert len(second) == 7 and second[-1]["content"].startswith("The analyst revised")
+    new = json.loads(second[-1]["content"].split("Newly cited complaints (JSON):\n", 1)[1])
+    assert [c["odi_number"] for c in new] == ["7"]
+
+    assert rec["status"] == "approved" and rec["report"]["assessment"] == "possible_defect"
+    rv = rec["review"]
+    assert rv["verdict"] == "approved" and rv["rounds"] == 2 and rv["agrees"]
+    first = rv["reviews"][0]
+    assert first["verdict"] == "needs_revision" and first["verdict_given"] == "approved"
+    assert first["problems"] == [] and first["of_report"]["assessment"] == "likely_defect"
+    assert rec["review_tool_calls"] == [{"name": "vehicle_recalls", "input": {}}]
+    by_agent = rec["usage"]["by_agent"]
+    assert by_agent["investigator"]["input_tokens"] == 3000
+    assert by_agent["reviewer"]["input_tokens"] == 4000
+    assert rec["usage"]["estimated_usd"] == pytest.approx(7 * (1000 * 4 + 200 * 20) / 1e6)
+    index = pd.read_parquet(tmp_path / "investigations" / "index.parquet")
+    assert index[["slug", "status", "assessment", "review_rounds"]].values.tolist() == [
+        ["FORD_F-150_2020_t0", "approved", "possible_defect", 2]]
+
+
+def test_reviewer_disputes_after_its_last_round(tmp_path: Path):
+    pytest.importorskip("langgraph")
+    from pipeline import investigate, signals
+
+    signals.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    unsupported = _review("approved", [(0, "not_supported")], assessment="not_a_defect")
+    fake = _FakeClaude([[_search()], _report(["9"]), unsupported, _report(["9"]), unsupported])
+    rec = investigate.run(clean=tmp_path, pair=investigate.Pair("FORD", "F-150", 2020, 0),
+                          client=fake)[0]
+    assert fake.script == [] and len(fake.calls) == 5
+    assert rec["status"] == "disputed" and rec["review"]["rounds"] == 2
+    assert rec["review"]["agrees"] is False and rec["review"]["assessment"] == "not_a_defect"
+
+
+def test_minor_issues_of_an_approved_report_are_fixed_without_another_review(tmp_path: Path):
+    pytest.importorskip("langgraph")
+    from pipeline import investigate, signals
+
+    signals.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    fake = _FakeClaude([
+        [_search()], _report(["9", "8"]),
+        _review("approved", [(0, "partly_supported")], [("minor", "8 does not fit", ["8"])]),
+        _report(["9", "999"]),  # the edit cites a made-up complaint: checked, sent back once
+        _report(["9"]),
+    ])
+    rec = investigate.run(clean=tmp_path, pair=investigate.Pair("FORD", "F-150", 2020, 0),
+                          client=fake)[0]
+    assert fake.script == [] and len(fake.calls) == 5
+    edit = fake.calls[3]["messages"][-1]["content"]
+    assert edit.startswith("A second reader fact-checked your report and approved it")
+    assert "[minor] 8 does not fit (complaints 8)" in edit
+    assert "999" in fake.calls[4]["messages"][-1]["content"]
+    assert rec["status"] == "approved" and rec["review"]["minor_fixes_applied"]
+    assert rec["review"]["rounds"] == 1 and rec["report"]["evidence"][0]["complaint_ids"] == ["9"]
+    assert rec["check"] == {"passed": True, "problems": [], "revisions": 1}
+
+
+def test_batch_runs_pairs_within_budget_and_survives_failures(tmp_path: Path):
+    pytest.importorskip("langgraph")
+    import anthropic
+
+    from pipeline import investigate, signals
+
+    signals.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    ford = investigate.Pair("FORD", "F-150", 2020, 0)
+    empty = investigate.Pair("FORD", "F-150", 2020, 1)  # no airbag complaints on the F-150
+    civic = investigate.Pair("HONDA", "CIVIC", 2019, 1)
+    fake = _FakeClaude([[_search()], _report(["9"])])  # $0.016 for the F-150
+    out = investigate.run(clean=tmp_path, pairs=[empty, ford, civic], client=fake,
+                          review_model=None, workers=1, budget=0.01)
+    assert "no complaints" in out[0]["error"] and out[1]["report"]["headline"]
+    assert out[2] == {"pair": civic._asdict(), "skipped": "budget $0.01 reached"}
+    index = pd.read_parquet(tmp_path / "investigations" / "index.parquet")
+    assert index["slug"].tolist() == ["FORD_F-150_2020_t0"]
+
+    # A lasting API error (no credit, bad key) stops the pairs not yet started.
+    import httpx2
+
+    def refused(msg):
+        req = httpx2.Request("POST", "https://api.anthropic.com/v1/messages")
+        return anthropic.BadRequestError(msg, response=httpx2.Response(400, request=req),
+                                         body=None)
+
+    class NoCredit(_FakeClaude):
+        def _create(self, **kwargs):
+            raise refused("credit balance is too low")
+
+    out = investigate.run(clean=tmp_path, pairs=[civic, ford], client=NoCredit([]),
+                          review_model=None, workers=1, force=True)
+    assert "BadRequestError" in out[0]["error"]
+    assert out[1] == {"pair": ford._asdict(), "skipped": "stopped after an API error"}
+
+
+def test_batch_keeps_going_after_network_errors_and_counts_spend_of_failed_pairs(
+        tmp_path: Path, monkeypatch):
+    pytest.importorskip("langgraph")
+    import anthropic
+
+    from pipeline import investigate, signals
+
+    monkeypatch.setattr(investigate, "RETRY_SECONDS", 0)
+    signals.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    ford = investigate.Pair("FORD", "F-150", 2020, 0)
+    civic = investigate.Pair("HONDA", "CIVIC", 2019, 1)
+
+    # A network drop is retried, mid-stream included; if it lasts, only that pair fails.
+    class Down(_FakeClaude):
+        def _create(self, **kwargs):
+            self.calls.append(kwargs)
+            raise anthropic.APIConnectionError(message="down", request=None)
+
+    down = Down([])
+    out = investigate.run(clean=tmp_path, pairs=[civic, ford], client=down,
+                          review_model=None, workers=1)
+    assert ["APIConnectionError" in r["error"] for r in out] == [True, True]
+    assert len(down.calls) == 2 * investigate.ATTEMPTS
+
+    class ReadTimeout(Exception):  # what httpx2 raises when a stream goes quiet
+        pass
+
+    class Flaky(_FakeClaude):
+        def _create(self, **kwargs):
+            if not self.calls:
+                self.calls.append(kwargs)
+                raise ReadTimeout("stream went quiet")
+            return super()._create(**kwargs)
+
+    flaky = Flaky([[_search()], _report(["9"])])
+    rec = investigate.run(clean=tmp_path, pair=ford, client=flaky, review_model=None)[0]
+    assert rec["check"]["passed"] and len(flaky.calls) == 3
+
+    # Spend is counted per response, so a pair that fails half way still uses up budget.
+    def declines(self, **kwargs):
+        if self.calls:
+            self.calls.append(kwargs)
+            return SimpleNamespace(content=[], stop_reason="refusal", stop_details="cyber",
+                                   usage=SimpleNamespace(input_tokens=1000, output_tokens=0,
+                                                         cache_read_input_tokens=0,
+                                                         cache_creation_input_tokens=0))
+        return _FakeClaude._create(self, **kwargs)
+
+    half = _FakeClaude([[_search()]])
+    half._create = declines.__get__(half)
+    out = investigate.run(clean=tmp_path, pairs=[civic, ford], client=half,
+                          review_model=None, workers=1, budget=0.01, force=True)
+    assert "declined" in out[0]["error"]  # $0.008 + $0.004 spent before it failed
+    assert out[1] == {"pair": ford._asdict(), "skipped": "budget $0.01 reached"}
+
+
+def test_complaints_can_be_read_in_full_and_searched_literally(tmp_path: Path):
+    pytest.importorskip("langgraph")
+    from pipeline import investigate, signals
+
+    signals.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    ev = investigate.Evidence(tmp_path, investigate.Pair("FORD", "F-150", 2020, 0))
+    got = ev.run_tool("read_complaints", {"odi_numbers": ["3", "10", "3"]})
+    assert [c["odi_number"] for c in got["complaints"]] == ["3"]
+    assert got["not_about_this_vehicle_and_theme"] == ["10"]  # a Honda complaint
+    found = ev.search_complaints(keyword="pedal")
+    assert found["matching"] == 10 and not found["complaints"][0]["truncated"]
+    assert ev.search_complaints(keyword="BRAKE%FLOOR")["matching"] == 0  # no wildcards
+    assert ev.search_complaints(keyword="b_ake")["matching"] == 0
+
+
+def test_an_edit_after_approval_that_changes_the_conclusion_is_not_approved():
+    from pipeline import investigate
+
+    review = {"verdict": "approved",
+              "of_report": {"assessment": "likely_defect", "confidence": "high"}}
+    report = {"assessment": "likely_defect", "confidence": "high"}
+    assert investigate._status([review], report) == "approved"
+    assert investigate._status([review], {**report, "confidence": "medium"}) == \
+        "changed_after_review"
+    assert investigate._status([{**review, "verdict": "needs_revision"}], report) == "disputed"
+    assert investigate._status([], report) == "unreviewed"
 
 
 class _FakeBatchAPI:
@@ -963,3 +1229,51 @@ def test_labelling_survives_an_api_refusal(tmp_path: Path):
     ok = batch.label_or_warn(Broke(), tmp_path / "state.json", "t",
                              lambda: [{"custom_id": "a"}], stored.append)
     assert ok is False and stored == [] and not (tmp_path / "state.json").exists()
+
+
+def test_export_publishes_only_approved_reports_on_confirmed_alerts(tmp_path: Path):
+    pytest.importorskip("langgraph")
+    from pipeline import export, investigate, signals
+
+    signals.run(clean=tmp_path, model_name="fake/model", encode=_signal_corpus(tmp_path))
+    fake = _FakeClaude([[_search()], _report(["9", "8"]),
+                        _review("approved", [(0, "supported")])])
+    investigate.run(clean=tmp_path, pair=investigate.Pair("FORD", "F-150", 2020, 0), client=fake)
+    reports = tmp_path / "investigations"
+    rec = json.loads((reports / "FORD_F-150_2020_t0.json").read_text())
+    rec["report"]["summary"] = "Owner wrote: call me at 555-123-4567 any time."
+    (reports / "FORD_F-150_2020_t0.json").write_text(json.dumps(rec))
+    disputed = {**rec, "pair": {**rec["pair"], "model_year": 2021}, "status": "disputed"}
+    (reports / "FORD_F-150_2021_t0.json").write_text(json.dumps(disputed))
+    gone = {**rec, "pair": {**rec["pair"], "model_year": 2019}}
+    (reports / "FORD_F-150_2019_t0.json").write_text(json.dumps(gone))
+    (tmp_path / "model").mkdir()
+    pd.DataFrame({"make": ["FORD"] * 2, "model": ["F-150"] * 2, "model_year": [2020, 2021],
+                  "theme_id": [0, 0], "status": ["confirmed", "confirmed"]}).to_parquet(
+        tmp_path / "model" / "alerts.parquet")
+    out = tmp_path / "site"
+    (out / "investigations").mkdir(parents=True)
+    (out / "investigations" / "old-report.json").write_text("{}")
+
+    published = export.run(clean=tmp_path, out=out)
+    # 2021 is disputed and 2019 is no longer an alert: only 2020 goes out.
+    assert [p["slug"] for p in published] == ["2020-ford-f-150-theme-0"]
+    files = sorted(f.name for f in (out / "investigations").glob("*.json"))
+    assert files == ["2020-ford-f-150-theme-0.json"]  # the stale file was removed
+    pub = json.loads((out / "investigations" / files[0]).read_text())
+    assert pub["reading"] == {"key": "consistent_pattern", "confidence": "medium",
+                              "label": "Consistent failure pattern in owner complaints"}
+    assert "likely_defect" not in json.dumps(pub)
+    assert pub["summary"] == "Owner wrote: call me at [PHONE] any time."
+    assert pub["findings"] == [{"text": "pedal to floor", "complaints": ["9", "8"]}]
+    assert pub["recalls"][0]["relation_label"] == "Covers this problem"
+    assert pub["signal"]["complaints"] == 10 and pub["signal"]["signal_since"] == "2020-03-01"
+    assert pub["provenance"]["human_reviewed"] is False and pub["provenance"]["note"]
+    assert not {"tool_calls", "usage", "dossier", "review_tool_calls"} & set(pub)
+    index = json.loads((out / "investigations.json").read_text())
+    assert [p["slug"] for p in index["investigations"]] == ["2020-ford-f-150-theme-0"]
+
+    # A rerun on the same reports leaves the files as they are.
+    before = (out / "investigations" / files[0]).stat().st_mtime_ns
+    export.run(clean=tmp_path, out=out)
+    assert (out / "investigations" / files[0]).stat().st_mtime_ns == before

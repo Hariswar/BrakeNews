@@ -1,0 +1,245 @@
+{
+  "data_through": "2026-10-01",
+  "failure_pattern": "With AIS engaged and the van stopped, releasing the brake or pressing the accelerator does not restart the engine, or it restarts sluggishly and stalls. The transmission often shifts itself into Park or the dash says to shift to Park. Several owners report the red battery warning light, and in some cases the hazard lights come on by themselves. The start button may do nothing at first, and some owners had to hold it or try several times. The fault is intermittent and recurring, up to 1–2 times a week for one owner. Some owners link it to air conditioning use, while one says climate settings make no difference. Some report slow cranking at normal starts too. Three owners had the starter replaced and then saw the fault return, and in one of those cases the dealer judged the starter to be failing both times. Only one complaint gives a mileage in the mileage field (about 22,000 miles, which is where the dossier's median comes from). Another gives about 21,000 miles in its narrative, when a low-battery warning was followed days later by a complete no-start. The earliest failure date in the complaints is August 2024.",
+  "findings": [
+    {
+      "complaints": [
+        "11651666",
+        "11672380",
+        "11744767",
+        "11751881",
+        "11762202",
+        "11764011",
+        "11766682",
+        "11767967",
+        "11768330",
+        "11769042",
+        "11771847",
+        "11744429",
+        "11736381",
+        "11723214"
+      ],
+      "text": "Many independent owners describe the same sequence: AIS shuts the engine off at a stop, the engine does not restart when the brake is released, and the driver has to shift to Park and restart by hand while stuck in traffic."
+    },
+    {
+      "complaints": [
+        "11750363",
+        "11750375",
+        "11721225",
+        "11733652",
+        "11741942",
+        "11760885",
+        "11739505"
+      ],
+      "text": "The van shifts itself into Park and/or the start button does not respond at first. Some owners had to hold the button or put the fob against it, and restarting took up to 1–2 minutes."
+    },
+    {
+      "complaints": [
+        "11677348",
+        "11760885",
+        "11733652",
+        "11674049",
+        "11724091",
+        "11758238",
+        "11749879",
+        "11701303",
+        "11689151"
+      ],
+      "text": "The red battery warning light comes on during the failure, but replacing the battery (including with an AGM battery) or getting a passing battery test did not fix it."
+    },
+    {
+      "complaints": [
+        "11759234",
+        "11768697",
+        "11754219",
+        "11770635"
+      ],
+      "text": "Three owners had the starter replaced and the restart failure came back within months. In one case the dealer judged the starter to be failing both times, after cranking slowed gradually before each failure, and the van is on its second starter. Another owner, at about 21,000 miles, had a low-battery warning followed by a complete no-start."
+    },
+    {
+      "complaints": [
+        "11736192",
+        "11768614",
+        "11770635",
+        "11741214",
+        "11677377",
+        "11677348",
+        "11689151"
+      ],
+      "text": "The dealer could not reproduce the fault or declined to repair it. Some owners were told to switch AIS off, and some service staff called it a known issue. One owner says the dealer mentioned a bulletin that was later withdrawn, and another says the 2025 model has a software change. These are owners' secondhand claims and are unverified."
+    },
+    {
+      "complaints": [
+        "11677348",
+        "11690366",
+        "11741214",
+        "11739505",
+        "11749879",
+        "11722539",
+        "11672380"
+      ],
+      "text": "Owners report near-misses and being stranded in risky places: a bridge overpass, the middle of a 5-lane road, and an intersection near a school with children on board."
+    },
+    {
+      "complaints": [
+        "11754219",
+        "11770635",
+        "11758869"
+      ],
+      "text": "A few complaints fit the pattern less cleanly: a drive-thru shutdown where the owner was unsure whether AIS was on, a later total no-start after a low-battery warning, and a gear-selection complaint with the van stuck in Park."
+    }
+  ],
+  "headline": "2024 Honda Odyssey: engine fails to restart after Auto Idle Stop shuts it off at a stop, leaving the van stalled in traffic. The same failure is reported on 2025–2026 Odysseys and other 2025 Honda/Acura models, and no recall covers it",
+  "open_questions": [
+    "What is the root cause? The candidates are AIS restart logic or calibration (for example, battery state-of-charge or air-conditioning load thresholds), the starter motor, or the battery and charging or ground circuit. The starter is a strong candidate part: three owners had it replaced and saw the fault return, and one dealer judged it to be failing twice. But starter and battery replacements did not reliably fix the fault, which also points to calibration or charging-system causes.",
+    "Where I partly disagree with the reviewer: I cite 11770635 for the low-battery warning and complete no-start at about 21,000 miles. I do not cite it as a failed-starter diagnosis, because the narrative available to me is cut off before it names any diagnosis. Whether a dealer found a failed starter in that case should be checked against the full complaint.",
+    "Has Honda issued, and then withdrawn, a technical service bulletin or software update for AIS restart on the 2024 Odyssey? Has it changed the 2025 calibration, as owners claim?",
+    "Does the much larger and simultaneous signal on the 2025 Odyssey (260 complaints), 2026 Odyssey, 2025 MDX and 2025 Ridgeline share hardware or software with the 2024 Odyssey? If so, should the evaluation cover all of them?",
+    "Why does the transmission shift itself into Park and the start button stop responding during the failure? Is this a designed fail-safe, and can the restart time be cut?",
+    "Only one complaint gives a mileage in the mileage field (about 22,000 miles), and one more gives about 21,000 miles in its narrative. It is unclear how failures relate to age or mileage."
+  ],
+  "provenance": {
+    "human_reviewed": false,
+    "investigator_model": "claude-opus-5-5",
+    "note": "Written by an AI (Claude) from public NHTSA complaint and recall data, and fact-checked against the cited complaints by a second AI. Not reviewed by a person. It describes what owners report; it is not a finding that a defect exists.",
+    "review": "approved",
+    "reviewer_model": "claude-opus-5-5",
+    "written": "2026-11-08"
+  },
+  "reading": {
+    "confidence": "high",
+    "key": "consistent_pattern",
+    "label": "Consistent failure pattern in owner complaints"
+  },
+  "recalls": [
+    {
+      "campaign_id": "23V858000",
+      "note": "A fuel pump failure recall covering 2013–2023 Hondas, including Odysseys up to 2023. It does not include the 2024 model year, and its failure mode (fuel pump) does not match an AIS restart failure at a stop.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V031000",
+      "note": "An FI-ECU software error causing stall or loss of power on 2023–2025 Pilot and Acura Type-S models. It shows Honda has fixed stalls with software recalls before, but it does not cover the Odyssey.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "25V785000",
+      "note": "A control module CPU reset causing loss of drive power on 2023–2025 Accord Hybrid. It is a software recall for a different vehicle and system.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "24V114000",
+      "note": "Steering gear box recall on 2023–2024 Odyssey; not related.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "26V332000",
+      "note": "Front passenger occupant classification (seat weight) sensor recall; not related.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V877000",
+      "note": "Aftermarket wheelchair restraint recall; not related.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    }
+  ],
+  "safety_risk": "The van is left without propulsion in an active traffic lane, at an intersection or on a bridge overpass, often while waiting to turn left and often with children on board. That creates a risk of rear-end and side collisions. Several owners describe near-misses: one says another driver had to swerve and they were nearly rear-ended, and others describe cars nearly hitting them or swerving aggressively around them. One owner got out of the van in the road to check it. No crashes, fires, injuries, deaths or tows are reported. The failure happens at a standstill, so there is no loss of steering or brakes at speed. The main risk is stalling in traffic.",
+  "schema_version": 1,
+  "signal": {
+    "checked_complaints": 50,
+    "checked_on_theme": 43,
+    "complaints": 50,
+    "complaints_with_injuries": 0,
+    "crashes": 0,
+    "deaths": 0,
+    "fires": 0,
+    "first_received": "2025-03-31",
+    "injured": 0,
+    "last_3_months": 20,
+    "last_3_months_expected": 11.8,
+    "last_received": "2026-10-26",
+    "median_miles": 22000.0,
+    "monthly_complaints": [
+      {
+        "complaints": 1,
+        "month": "2025-03"
+      },
+      {
+        "complaints": 4,
+        "month": "2025-07"
+      },
+      {
+        "complaints": 2,
+        "month": "2025-09"
+      },
+      {
+        "complaints": 1,
+        "month": "2025-11"
+      },
+      {
+        "complaints": 3,
+        "month": "2026-01"
+      },
+      {
+        "complaints": 4,
+        "month": "2026-03"
+      },
+      {
+        "complaints": 1,
+        "month": "2026-04"
+      },
+      {
+        "complaints": 3,
+        "month": "2026-05"
+      },
+      {
+        "complaints": 5,
+        "month": "2026-06"
+      },
+      {
+        "complaints": 6,
+        "month": "2026-07"
+      },
+      {
+        "complaints": 6,
+        "month": "2026-08"
+      },
+      {
+        "complaints": 7,
+        "month": "2026-09"
+      },
+      {
+        "complaints": 7,
+        "month": "2026-10"
+      }
+    ],
+    "peak_prr": 19.8,
+    "ranked_pairs": 37834,
+    "recall_risk": 0.1823,
+    "recent_complaints": 50,
+    "recent_prr": 19.3,
+    "risk_rank": 5,
+    "signal_since": "2025-07-01",
+    "signalling": true,
+    "surge_since": "2025-07-01",
+    "surging": true,
+    "towed": 0
+  },
+  "slug": "2024-honda-odyssey-engine-suddenly-shuts-off-while-driving",
+  "summary": "I read all 50 complaints in the window. Almost all describe the same failure. Auto Idle Stop (AIS) turns the engine off as designed at a light, stop sign or in traffic. When the driver releases the brake, the engine does not restart, or it cranks and then dies. The van is left stationary in a live lane until the driver shifts to Park and restarts by hand. That takes from a few seconds to about 2 minutes, and some drivers need several tries. Speed is recorded as 0 or blank in every complaint, so this is a restart-from-idle-stop failure, not an engine cutting out at road speed as the theme name suggests. Complaints rose from 1 in March 2025 to 6–7 a month in July–October 2026 (surging: 20 in the last 3 months against 11.75 expected; PRR 19.3). The dealer could not reproduce the fault in several cases, and replacing the battery or starter did not fix it for several owners. The same theme is signalling and surging on the 2025 Odyssey (260 complaints, PRR 28.5), the 2026 Odyssey (27, PRR 20.1), the 2025 Acura MDX (72, PRR 29.0) and the 2025 Ridgeline (29, PRR 13.2). That points to a shared AIS restart design or calibration problem across recent Honda models, not a one-off for this model year. No recall for the 2024 Odyssey covers it.",
+  "theme": {
+    "id": 70,
+    "name": "Engine suddenly shuts off while driving"
+  },
+  "vehicle": {
+    "make": "HONDA",
+    "model": "ODYSSEY",
+    "model_year": 2024
+  }
+}

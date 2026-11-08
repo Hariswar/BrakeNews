@@ -1,0 +1,225 @@
+{
+  "investigations": [
+    {
+      "headline": "2026 Honda Odyssey: Auto Idle Stop fails to restart the engine at stops, leaving the van shut down and shifted into Park in traffic. The same failure is surging on 2024–2025 Odysseys, and no recall covers it.",
+      "reading": {
+        "confidence": "high",
+        "key": "consistent_pattern",
+        "label": "Consistent failure pattern in owner complaints"
+      },
+      "recall_risk": 0.212,
+      "risk_rank": 1,
+      "slug": "2026-honda-odyssey-engine-suddenly-shuts-off-while-driving",
+      "surging": true,
+      "theme": {
+        "id": 70,
+        "name": "Engine suddenly shuts off while driving"
+      },
+      "vehicle": {
+        "make": "HONDA",
+        "model": "ODYSSEY",
+        "model_year": 2026
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2025 Honda Odyssey: Auto Idle Stop often fails to restart the engine at stops, leaving the van stalled in traffic; starter and battery replacements do not reliably fix it, and no recall covers it",
+      "reading": {
+        "confidence": "high",
+        "key": "consistent_pattern",
+        "label": "Consistent failure pattern in owner complaints"
+      },
+      "recall_risk": 0.1989,
+      "risk_rank": 3,
+      "slug": "2025-honda-odyssey-engine-suddenly-shuts-off-while-driving",
+      "surging": true,
+      "theme": {
+        "id": 70,
+        "name": "Engine suddenly shuts off while driving"
+      },
+      "vehicle": {
+        "make": "HONDA",
+        "model": "ODYSSEY",
+        "model_year": 2025
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2025 Acura MDX: engine often fails to restart after Auto Idle Stop, leaving the vehicle stranded in traffic. Repeat starter and battery replacements have not fixed it, and no recall covers it.",
+      "reading": {
+        "confidence": "high",
+        "key": "consistent_pattern",
+        "label": "Consistent failure pattern in owner complaints"
+      },
+      "recall_risk": 0.1869,
+      "risk_rank": 4,
+      "slug": "2025-acura-mdx-engine-suddenly-shuts-off-while-driving",
+      "surging": true,
+      "theme": {
+        "id": 70,
+        "name": "Engine suddenly shuts off while driving"
+      },
+      "vehicle": {
+        "make": "ACURA",
+        "model": "MDX",
+        "model_year": 2025
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2024 Honda Odyssey: engine fails to restart after Auto Idle Stop shuts it off at a stop, leaving the van stalled in traffic. The same failure is reported on 2025–2026 Odysseys and other 2025 Honda/Acura models, and no recall covers it",
+      "reading": {
+        "confidence": "high",
+        "key": "consistent_pattern",
+        "label": "Consistent failure pattern in owner complaints"
+      },
+      "recall_risk": 0.1823,
+      "risk_rank": 5,
+      "slug": "2024-honda-odyssey-engine-suddenly-shuts-off-while-driving",
+      "surging": true,
+      "theme": {
+        "id": 70,
+        "name": "Engine suddenly shuts off while driving"
+      },
+      "vehicle": {
+        "make": "HONDA",
+        "model": "ODYSSEY",
+        "model_year": 2024
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2026 Honda Pilot: 11 owners report the steering wheel clicking when turned, often blamed on the clock spring (cable reel). Dealer replacements are not fixing it. It looks like a noise defect, and no airbag or control failure has been reported.",
+      "reading": {
+        "confidence": "medium",
+        "key": "emerging_pattern",
+        "label": "Emerging pattern, limited evidence"
+      },
+      "recall_risk": 0.1756,
+      "risk_rank": 6,
+      "slug": "2026-honda-pilot-steering-wheel-clunks-or-clicks-when-turning",
+      "surging": true,
+      "theme": {
+        "id": 85,
+        "name": "Steering wheel clunks or clicks when turning"
+      },
+      "vehicle": {
+        "make": "HONDA",
+        "model": "PILOT",
+        "model_year": 2026
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2025 Toyota Tacoma: interior door handle assemblies break in normal use at low mileage, so occupants cannot open the door from inside. Replacement parts are reported on national backorder and no recall covers the problem.",
+      "reading": {
+        "confidence": "high",
+        "key": "consistent_pattern",
+        "label": "Consistent failure pattern in owner complaints"
+      },
+      "recall_risk": 0.1688,
+      "risk_rank": 7,
+      "slug": "2025-toyota-tacoma-rear-door-latch-fails-to-open-or-close",
+      "surging": true,
+      "theme": {
+        "id": 18,
+        "name": "Rear door latch fails to open or close"
+      },
+      "vehicle": {
+        "make": "TOYOTA",
+        "model": "TACOMA",
+        "model_year": 2025
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2024 Jeep Wrangler 4xe: two separate loss-of-power problems. The October 2025 over-the-air update shutdowns are already recalled under 25V710000. A second pattern is not covered by any recall: since the 68C battery recall software (25V741000), owners report electric drive power dropping, then a delay of several seconds before the gas engine takes over.",
+      "reading": {
+        "confidence": "medium",
+        "key": "consistent_pattern",
+        "label": "Consistent failure pattern in owner complaints"
+      },
+      "recall_risk": 0.1666,
+      "risk_rank": 8,
+      "slug": "2024-jeep-wrangler-vehicle-suddenly-loses-engine-power-at-speed",
+      "surging": true,
+      "theme": {
+        "id": 120,
+        "name": "Vehicle suddenly loses engine power at speed"
+      },
+      "vehicle": {
+        "make": "JEEP",
+        "model": "WRANGLER",
+        "model_year": 2024
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2026 Ford Explorer: seven owners report the panoramic sunroof glass shattering without impact while driving, all filed within about six months; no recall covers it",
+      "reading": {
+        "confidence": "medium",
+        "key": "emerging_pattern",
+        "label": "Emerging pattern, limited evidence"
+      },
+      "recall_risk": 0.1609,
+      "risk_rank": 9,
+      "slug": "2026-ford-explorer-glass-shatters-or-cracks-without-impact",
+      "surging": true,
+      "theme": {
+        "id": 12,
+        "name": "Glass shatters or cracks without impact"
+      },
+      "vehicle": {
+        "make": "FORD",
+        "model": "EXPLORER",
+        "model_year": 2026
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2025 Wrangler: owners of the 4xe report electric drive power fading, sometimes in steps, then a delay before the gas engine takes over. One October 2025 report (and probably a second) matches OTA recall 25V710000, which the automatic matching missed",
+      "reading": {
+        "confidence": "medium",
+        "key": "emerging_pattern",
+        "label": "Emerging pattern, limited evidence"
+      },
+      "recall_risk": 0.152,
+      "risk_rank": 13,
+      "slug": "2025-jeep-wrangler-vehicle-suddenly-loses-engine-power-at-speed",
+      "surging": true,
+      "theme": {
+        "id": 120,
+        "name": "Vehicle suddenly loses engine power at speed"
+      },
+      "vehicle": {
+        "make": "JEEP",
+        "model": "WRANGLER",
+        "model_year": 2025
+      },
+      "written": "2026-11-08"
+    },
+    {
+      "headline": "2025 Honda Ridgeline: the Auto Idle Stop system often fails to restart the engine at stops, leaving trucks stuck in traffic lanes and intersections. No recall covers it.",
+      "reading": {
+        "confidence": "medium",
+        "key": "consistent_pattern",
+        "label": "Consistent failure pattern in owner complaints"
+      },
+      "recall_risk": 0.1477,
+      "risk_rank": 14,
+      "slug": "2025-honda-ridgeline-engine-suddenly-shuts-off-while-driving",
+      "surging": true,
+      "theme": {
+        "id": 70,
+        "name": "Engine suddenly shuts off while driving"
+      },
+      "vehicle": {
+        "make": "HONDA",
+        "model": "RIDGELINE",
+        "model_year": 2025
+      },
+      "written": "2026-11-08"
+    }
+  ],
+  "schema_version": 1
+}

@@ -106,3 +106,7 @@ NAMING_MODEL = "claude-haiku-5-5"
 # Claude model behind the Phase 4 investigator agent (investigate.py): it reads complaint
 # narratives and recall summaries, decides what else to look up, and writes a cited report.
 INVESTIGATE_MODEL = "claude-opus-5-5"
+
+# Claude model of the Phase 4 reviewer (investigate.py), which fact-checks each investigator
+# report against the complaints it cites before it is published.
+REVIEW_MODEL = "claude-opus-5-5"

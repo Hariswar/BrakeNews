@@ -1,0 +1,238 @@
+{
+  "data_through": "2026-10-01",
+  "failure_pattern": "Post-68C (25V741000) software on the 2024 Wrangler 4xe. While driving in Electric mode, often after 5–20 minutes, above about 45–55 mph, uphill or during hard acceleration, electric power falls back to about 43–48 kW or keeps declining. The vehicle stops responding to the accelerator and loses speed. 'Electric Mode Temporarily Unavailable' appears, and the gas engine cold-starts abruptly after a delay of seconds (owners report 5–15 seconds), sometimes with a lurch. Owners report it happening with 40–50% battery charge and in mild weather, and many say it repeats on most drives. Dealers mostly find no fault codes. Separate earlier event, already recalled: complete loss of drive power with a 'shift to park' message after the October 10, 2025 OTA update.",
+  "findings": [
+    {
+      "complaints": [
+        "11770542",
+        "11767648",
+        "11766230",
+        "11765588",
+        "11765613",
+        "11765725",
+        "11765328",
+        "11759324",
+        "11749532",
+        "11731459",
+        "11712427"
+      ],
+      "text": "Eleven owners independently tie a new pattern to the 68C battery recall software: electric power drops and the engine takes over late. They say it was absent before the repair. One of them (11712427) blames both the Fall 2025 OTA update and the 68C repair."
+    },
+    {
+      "complaints": [
+        "11765796",
+        "11765123",
+        "11756438",
+        "11762591"
+      ],
+      "text": "Three more owners describe the same electric-mode power fade, the 'electric/battery unavailable' message and a delay of several seconds before the engine takes over, without naming a recall. A fourth describes the same symptom but attributes it to 25V710000 and says no remedy is available yet, so it may overlap that recall."
+    },
+    {
+      "complaints": [
+        "11765613",
+        "11756438"
+      ],
+      "text": "Two owners report specific power caps in Electric mode: about 43–45 kW in one case and 46–48 kW in the other, after which the vehicle stops accelerating."
+    },
+    {
+      "complaints": [
+        "11749532",
+        "11765588",
+        "11765123",
+        "11765328"
+      ],
+      "text": "The manufacturer and dealers treat the behavior as intended. One dealer said the power loss is forced by the 68C software to keep the battery from overheating. Stellantis replied in writing that the vehicle is 'operating as expected'. Other dealers could not duplicate it or found no codes."
+    },
+    {
+      "complaints": [
+        "11716350"
+      ],
+      "text": "Only crash-flagged complaint: full loss of motive power with limp mode, loss of power steering and red hybrid-system warnings about 25 hours after the 68C repair, at 24,947 miles. The readable narrative describes a near collision rather than an impact."
+    },
+    {
+      "complaints": [
+        "11692672",
+        "11692698",
+        "11692758",
+        "11692775",
+        "11692803",
+        "11692860",
+        "11692955",
+        "11692995",
+        "11692996",
+        "11693038",
+        "11693319",
+        "11692985",
+        "11692926",
+        "11758042"
+      ],
+      "text": "October 2025 burst: complete loss of drive power with a flashing D or 'shift to park / restart' message, repeating every few minutes. Owners link it to the Uconnect OTA update of about 10/10/2025. Recall 25V710000 covers this. One later complaint has a failure date of 2025-10-11 and describes a highway power loss in Electric mode, so it may also belong to this group."
+    },
+    {
+      "complaints": [
+        "11732138",
+        "11751410",
+        "11746761",
+        "11766878",
+        "11705524",
+        "11674165",
+        "11662222",
+        "11708930",
+        "11770042",
+        "11773451",
+        "11766152"
+      ],
+      "text": "Complaints that do not fit either software pattern. Some are isolated full shutdowns or turtle-mode events with hybrid or transmission warnings, causes unclear, possibly hardware or the engine failure covered by 25V766000. One is a hybrid-mode power drop when the battery runs out. One is a power loss that ended in a charging-system warning, a no-start and a tow. One vaguely blames 'all the recalls'."
+    }
+  ],
+  "headline": "2024 Jeep Wrangler 4xe: two separate loss-of-power problems. The October 2025 over-the-air update shutdowns are already recalled under 25V710000. A second pattern is not covered by any recall: since the 68C battery recall software (25V741000), owners report electric drive power dropping, then a delay of several seconds before the gas engine takes over.",
+  "open_questions": [
+    "Is the post-68C power limit an intended thermal-protection strategy? If so, does derating electric propulsion without a seamless, immediate handover to the engine meet safety expectations? The manufacturer's calibration and powertrain fault codes are needed.",
+    "Is a remedy for 25V710000 available, and does its scope overlap the 2026 electric-mode derate? One owner (11762591) attributes the derate to 25V710000 and reports no remedy available. The reviewer also cited 11732138 for this, but the part of that narrative I could read does not mention remedy availability, so I cite only 11762591.",
+    "Did complaint 11716350 involve an impact? It is flagged as a crash, but its narrative is cut off. The readable part describes drifting the unpowered vehicle, which reads as a near collision. I have described it that way and left the crash flag on record.",
+    "How long is the gap between electric power fade and engine propulsion in Electric mode, and is it worse with a cold engine?",
+    "Does the same post-68C pattern appear on the 2023 and 2025 Wrangler 4xe (both signalling and surging) and on the Grand Cherokee 4xe that received 68C?",
+    "Were the isolated full shutdowns caused by the 68C software, the October OTA software, or hardware such as the engine debris under 25V766000?",
+    "Mileage is missing from almost all narratives, so the pattern cannot be tied to a mileage range."
+  ],
+  "provenance": {
+    "human_reviewed": false,
+    "investigator_model": "claude-opus-5-5",
+    "note": "Written by an AI (Claude) from public NHTSA complaint and recall data, and fact-checked against the cited complaints by a second AI. Not reviewed by a person. It describes what owners report; it is not a finding that a defect exists.",
+    "review": "approved",
+    "reviewer_model": "claude-opus-5-5",
+    "written": "2026-11-08"
+  },
+  "reading": {
+    "confidence": "medium",
+    "key": "consistent_pattern",
+    "label": "Consistent failure pattern in owner complaints"
+  },
+  "recalls": [
+    {
+      "campaign_id": "25V710000",
+      "note": "Covers 2023-2025 Wrangler 4xe: an OTA software error causes loss of drive power. It covers the 33-complaint October 2025 cluster. The automatic matching missed it because it is filed under model WRANGLER 4XE. It does not clearly cover the 2026 post-68C electric power-loss pattern, though one 2026 owner attributes the derate to it and reports no remedy available.",
+      "relation": "covers_this_problem",
+      "relation_label": "Covers this problem"
+    },
+    {
+      "campaign_id": "25V741000",
+      "note": "Recall 68C, for high-voltage battery fire risk. It does not address loss of power. Owners say its software remedy is what started the 2026 electric power-loss pattern, so it is the likely trigger rather than a covering recall.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V766000",
+      "note": "Debris inside the engine causing engine failure and loss of drive power on 2024-2025 Wrangler 4xe. It could explain some isolated shutdowns, but no complaint I read describes engine damage.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "25V576000",
+      "note": "Grand Cherokee PHEV hybrid control processor software error causing loss of drive power. Same Stellantis 4xe architecture.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "24V572000",
+      "note": "2021 Wrangler/Gladiator powertrain control module software causing an engine stall. Earlier model years.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    },
+    {
+      "campaign_id": "26V659000",
+      "note": "Toyota RAV4 PHEV: a motor-generator ECU error reduces power or shuts down at higher speeds. A precedent for recalling PHEV power reduction at speed.",
+      "relation": "similar_problem_other_vehicle",
+      "relation_label": "Similar problem on another vehicle"
+    }
+  ],
+  "safety_risk": "The vehicle loses propulsion with no warning while merging, passing, climbing hills or crossing intersections at highway speed. That exposes it to rear-end collisions, and a sudden surge when the engine kicks in can cause a frontal conflict. In the related shutdown events owners report losing power steering and being stopped in live traffic lanes. One complaint is flagged as a crash (11716350). The part of its narrative I could read describes drifting an unpowered vehicle, not an impact, so it may be a near collision rather than a crash. There are no reported injuries, deaths or fires, and none is flagged as towed, though several narratives mention a tow. Many owners describe near-collisions.",
+  "schema_version": 1,
+  "signal": {
+    "checked_complaints": 62,
+    "checked_on_theme": 62,
+    "complaints": 62,
+    "complaints_with_injuries": 0,
+    "crashes": 1,
+    "deaths": 0,
+    "fires": 0,
+    "first_received": "2025-05-20",
+    "injured": 0,
+    "last_3_months": 17,
+    "last_3_months_expected": 6.1,
+    "last_received": "2026-10-25",
+    "median_miles": null,
+    "monthly_complaints": [
+      {
+        "complaints": 1,
+        "month": "2025-05"
+      },
+      {
+        "complaints": 1,
+        "month": "2025-07"
+      },
+      {
+        "complaints": 33,
+        "month": "2025-10"
+      },
+      {
+        "complaints": 2,
+        "month": "2025-12"
+      },
+      {
+        "complaints": 2,
+        "month": "2026-01"
+      },
+      {
+        "complaints": 1,
+        "month": "2026-02"
+      },
+      {
+        "complaints": 2,
+        "month": "2026-04"
+      },
+      {
+        "complaints": 1,
+        "month": "2026-06"
+      },
+      {
+        "complaints": 2,
+        "month": "2026-07"
+      },
+      {
+        "complaints": 3,
+        "month": "2026-08"
+      },
+      {
+        "complaints": 11,
+        "month": "2026-09"
+      },
+      {
+        "complaints": 3,
+        "month": "2026-10"
+      }
+    ],
+    "peak_prr": 15.3,
+    "ranked_pairs": 37834,
+    "recall_risk": 0.1666,
+    "recent_complaints": 62,
+    "recent_prr": 11.7,
+    "risk_rank": 8,
+    "signal_since": "2025-10-01",
+    "signalling": true,
+    "surge_since": "2025-10-01",
+    "surging": true,
+    "towed": 0
+  },
+  "slug": "2024-jeep-wrangler-vehicle-suddenly-loses-engine-power-at-speed",
+  "summary": "I read all 62 complaints. They all concern the 4xe plug-in hybrid and fall into three main groups. (1) 33 complaints arrived between Oct 11 and Oct 23, 2025. Owners describe total loss of drive power after a Uconnect over-the-air (OTA) software update pushed around 10/10/2025. The dash showed a flashing D or 'shift to park / restart', and the failure came back every few minutes after a restart. Recall 25V710000 (2023-2025 Wrangler 4xe, loss of drive power from an OTA software error) covers this group. The automatic recall matching missed it because the recall is filed under model WRANGLER 4XE, so it does not appear in this vehicle's recall list. This burst is most of the surge's onset. (2) About 14 complaints from January to October 2026 describe one consistent, detailed failure that no recall covers. In Electric mode the available electric power is capped (owners report about 43–48 kW), or it fades under load at highway speed, on hills or while merging. The vehicle slows even with the accelerator held down. 'Electric Mode Temporarily Unavailable' appears, and the gas engine starts abruptly after a delay of seconds, sometimes followed by a sudden surge. Twelve complaints mention 68C. Eleven of them tie this power loss directly to the software remedy for recall 68C (25V741000, high-voltage battery fire risk), and several say it never happened before that repair. One of the eleven (11712427) blames both the Fall 2025 OTA update and 68C. One owner says the dealer told them the power loss is now deliberate, to keep the battery cool. Another says Stellantis replied in writing that the vehicle is 'operating as expected'. Three more owners describe the same electric-mode symptom without naming a recall. A fourth (11762591) describes it too, but attributes it to 25V710000, so it may overlap that recall. This group drives the September 2026 rise (11 complaints). (3) The rest are scattered. Some are full shutdowns or turtle-mode (limp mode) events with hybrid-system warnings and unclear causes. They include the one crash-flagged complaint, which mentions 68C but describes a full shutdown with loss of power steering about 25 hours after the 68C repair, not the electric-mode fade. Also in this group: a hybrid-mode power drop when the battery reaches 0%, a highway power loss on the day after the October OTA update, and a power loss that ended in a no-start and a tow. Taken together, a defect is likely in the post-68C hybrid power management: a recall remedy that cuts electric propulsion during driving without a smooth handover to the engine. Confidence is medium because the behavior may be an intended thermal protection strategy, because the narratives give no mileage data, and because part of the 2026 reports could overlap the still-open 25V710000 recall. The 2023 and 2025 model years are also signalling and surging, which fits a fleet-wide software cause.",
+  "theme": {
+    "id": 120,
+    "name": "Vehicle suddenly loses engine power at speed"
+  },
+  "vehicle": {
+    "make": "JEEP",
+    "model": "WRANGLER",
+    "model_year": 2024
+  }
+}
