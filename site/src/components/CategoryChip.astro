@@ -1,0 +1,24 @@
+---
+// A problem's category: icon + name on a tinted chip. The name carries the meaning.
+import Icon from "./Icon.astro";
+import { categoryLabel, categoryOf } from "../lib/categories";
+
+interface Props {
+  themeId: number;
+}
+const key = categoryOf(Astro.props.themeId);
+---
+
+<span class="chip cat" style={`--chip-bg:var(--cat-${key}-bg);--chip-fg:var(--cat-${key}-fg)`}>
+  <Icon name={key} size={16} />
+  {categoryLabel(key)}
+</span>
+
+<style>
+  .cat {
+    background: var(--chip-bg);
+  }
+  .cat :global(.icon) {
+    color: var(--chip-fg);
+  }
+</style>

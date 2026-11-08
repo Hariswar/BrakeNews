@@ -1,0 +1,282 @@
+---
+// Every published report, filterable by category, confidence and make, and sortable. Without
+// JavaScript the filters stay hidden and the full list shows, highest estimate first.
+import Base from "../../layouts/Base.astro";
+import AboutData from "../../components/AboutData.astro";
+import Icon from "../../components/Icon.astro";
+import ReportCard from "../../components/ReportCard.astro";
+import { allReports, latestDataMonth } from "../../lib/reports";
+import { categoryLabel, categoryOf, type CategoryKey } from "../../lib/categories";
+import { makeName, monthLabel, vehicleName } from "../../lib/format";
+
+const reports = await allReports();
+const through = latestDataMonth(reports);
+const allRising = reports.length > 0 && reports.every((r) => r.signal.surging);
+
+const uniq = <T,>(xs: T[]) => [...new Set(xs)];
+const cats = uniq(reports.map((r) => categoryOf(r.theme.id))).sort((a, b) =>
+  categoryLabel(a).localeCompare(categoryLabel(b)),
+) as CategoryKey[];
+const LEVELS = ["high", "medium", "low"] as const;
+const levels = LEVELS.filter((l) => reports.some((r) => r.reading.confidence === l));
+const makes = uniq(reports.map((r) => r.vehicle.make)).sort((a, b) => makeName(a).localeCompare(makeName(b)));
+---
+
+<Base
+  title="All reports | BrakeNews"
+  description="Every published BrakeNews investigation report on a car problem owners report far more often than usual, with filters by category, confidence and make."
+  layout="wide"
+>
+  <header class="page-head">
+    <p class="overline">Investigation reports</p>
+    <h1>All reports</h1>
+    <p class="lead prose">
+      Problems with the highest estimated chance of a recall that does not exist yet, each
+      investigated against the complaints themselves.
+      {through && ` NHTSA data through ${monthLabel(through, true)}.`}
+    </p>
+    {allRising && (
+      <p class="rising-note">
+        <Icon name="trend-up" size={18} />
+        Complaints are still rising for every problem listed, beyond what each vehicle's own past
+        predicts.
+      </p>
+    )}
+  </header>
+
+  <details class="filter-box panel" data-filter-box hidden>
+  <summary class="filter-toggle">
+    <Icon name="filter" size={18} /> Filter and sort
+  </summary>
+  <form class="filters" data-filters aria-label="Filter and sort reports">
+    <div class="filter">
+      <label for="f-cat">Category</label>
+      <select id="f-cat" name="cat">
+        <option value="">All categories</option>
+        {cats.map((c) => <option value={c}>{categoryLabel(c)}</option>)}
+      </select>
+    </div>
+    <div class="filter">
+      <label for="f-conf">Confidence</label>
+      <select id="f-conf" name="conf">
+        <option value="">Any confidence</option>
+        {levels.map((l) => <option value={l}>{l[0].toUpperCase() + l.slice(1)}</option>)}
+      </select>
+    </div>
+    <div class="filter">
+      <label for="f-make">Make</label>
+      <select id="f-make" name="make">
+        <option value="">All makes</option>
+        {makes.map((m) => <option value={m}>{makeName(m)}</option>)}
+      </select>
+    </div>
+    <div class="filter">
+      <label for="f-sort">Sort by</label>
+      <select id="f-sort" name="sort">
+        <option value="risk">Recall estimate</option>
+        <option value="complaints">Most complaints</option>
+        <option value="vehicle">Vehicle (A–Z)</option>
+      </select>
+    </div>
+    <div class="filter-actions">
+      <button type="reset" class="btn btn-secondary">Reset</button>
+    </div>
+  </form>
+  </details>
+  <p class="count" data-count role="status" aria-live="polite">
+    {reports.length} {reports.length === 1 ? "report" : "reports"}
+  </p>
+
+  {reports.length === 0 ? (
+    <p class="empty panel">No reports are published yet. Check back after the next data update.</p>
+  ) : (
+    <>
+      <ul class="card-grid" role="list" data-list>
+        {reports.map((r, i) => (
+          <li
+            data-cat={categoryOf(r.theme.id)}
+            data-conf={r.reading.confidence}
+            data-make={r.vehicle.make}
+            data-risk={i}
+            data-complaints={r.signal.complaints ?? 0}
+            data-vehicle={vehicleName(r.vehicle)}
+          >
+            <ReportCard report={r} showTrend={!allRising} heading="h2" />
+          </li>
+        ))}
+      </ul>
+      <div class="empty panel" data-empty hidden>
+        <p><strong>No reports match these filters.</strong></p>
+        <p>Try another category or make, or show everything again.</p>
+        <button type="button" class="btn btn-secondary" data-clear>Show all reports</button>
+      </div>
+    </>
+  )}
+
+  <AboutData>
+    <p>
+      Each report is written by an AI (Claude) from public NHTSA complaint and recall data, and
+      fact-checked against the cited complaints by a second AI. No person reviews them. A report
+      describes what owners report. It is not a finding that a defect exists, and a high score does
+      not mean a recall will happen. <a href="/method/">How it works</a>.
+    </p>
+  </AboutData>
+</Base>
+
+<script>
+  const form = document.querySelector<HTMLFormElement>("[data-filters]");
+  const list = document.querySelector<HTMLElement>("[data-list]");
+  const count = document.querySelector<HTMLElement>("[data-count]");
+  const empty = document.querySelector<HTMLElement>("[data-empty]");
+  const box = document.querySelector<HTMLDetailsElement>("[data-filter-box]");
+  if (form && list && count && box) {
+    box.hidden = false;
+    // Open on wide screens; a tap-to-open toggle on phones so results come first.
+    box.open = matchMedia("(min-width: 700px)").matches;
+    const items = [...list.children] as HTMLElement[];
+    const total = items.length;
+    const field = (n: string) => (form.elements.namedItem(n) as HTMLSelectElement).value;
+
+    const apply = () => {
+      const [cat, conf, make, sort] = ["cat", "conf", "make", "sort"].map(field);
+      const sorted = [...items].sort((a, b) => {
+        if (sort === "complaints") return Number(b.dataset.complaints) - Number(a.dataset.complaints);
+        if (sort === "vehicle") return (a.dataset.vehicle ?? "").localeCompare(b.dataset.vehicle ?? "");
+        return Number(a.dataset.risk) - Number(b.dataset.risk);
+      });
+      let shown = 0;
+      for (const li of sorted) {
+        const ok =
+          (!cat || li.dataset.cat === cat) &&
+          (!conf || li.dataset.conf === conf) &&
+          (!make || li.dataset.make === make);
+        li.hidden = !ok;
+        shown += ok ? 1 : 0;
+        list.append(li);
+      }
+      count.textContent =
+        shown === total ? `${total} reports` : `Showing ${shown} of ${total} reports`;
+      if (empty) empty.hidden = shown > 0;
+    };
+    form.addEventListener("change", apply);
+    form.addEventListener("reset", () => setTimeout(apply));
+    document.querySelector("[data-clear]")?.addEventListener("click", () => {
+      form.reset();
+      apply();
+    });
+  }
+</script>
+
+<style>
+  .page-head {
+    margin-bottom: var(--space-5);
+  }
+  .rising-note {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0;
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--trend-soft);
+    font-size: var(--text-sm);
+  }
+  .rising-note :global(.icon) {
+    color: var(--trend);
+  }
+  .filter-box {
+    margin-bottom: var(--space-3);
+  }
+  .filter-box[hidden] {
+    display: none;
+  }
+  .filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 48px;
+    padding: 0 var(--space-4);
+    font-weight: 600;
+    cursor: pointer;
+    list-style: none;
+  }
+  .filter-toggle::-webkit-details-marker {
+    display: none;
+  }
+  .filter-toggle::after {
+    content: "";
+    margin-left: auto;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--ink-2);
+    border-bottom: 2px solid var(--ink-2);
+    transform: rotate(45deg) translateY(-2px);
+    transition: transform var(--dur) var(--ease);
+  }
+  .filter-box[open] .filter-toggle::after {
+    transform: rotate(225deg) translateY(-2px);
+  }
+  .filters {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    align-items: end;
+    padding: 0 var(--space-4) var(--space-4);
+  }
+  .filter {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .filter label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+  }
+  .filter select {
+    min-height: 44px;
+    padding: 0 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--ink);
+    font: 500 var(--text-sm) / 1.2 var(--font-body-stack);
+  }
+  .filter-actions .btn {
+    width: 100%;
+  }
+  .count {
+    margin: 0 0 var(--space-3);
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+  }
+  .card-grid {
+    list-style: none;
+    margin: 0 0 var(--space-6);
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: 1fr;
+  }
+  .card-grid li[hidden] {
+    display: none;
+  }
+  @media (min-width: 700px) {
+    .card-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-4);
+    }
+  }
+  @media (min-width: 1040px) {
+    .card-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .empty {
+    padding: var(--space-5);
+    margin-bottom: var(--space-6);
+    text-align: center;
+  }
+  .empty[hidden] {
+    display: none;
+  }
+</style>

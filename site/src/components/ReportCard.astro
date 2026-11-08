@@ -1,0 +1,166 @@
+---
+// One investigation report as a card. The whole card is clickable through the title link
+// (stretched over the card); the tooltips sit above it and stay usable.
+import type { CollectionEntry } from "astro:content";
+import CategoryChip from "./CategoryChip.astro";
+import ConfidenceBadge from "./ConfidenceBadge.astro";
+import InfoTip from "./InfoTip.astro";
+import Sparkline from "./Sparkline.astro";
+import TrendTag from "./TrendTag.astro";
+import { num, percent, vehicleName, withoutVehicle } from "../lib/format";
+
+type Report = CollectionEntry<"investigations">["data"];
+interface Props {
+  report: Report;
+  showProblem?: boolean; // false inside a group headed by the problem
+  showTrend?: boolean; // false when every report on the page is rising (said once above)
+  heading?: "h2" | "h3" | "h4";
+}
+const { report: r, showProblem = true, showTrend = true, heading: H = "h3" } = Astro.props;
+const vehicle = vehicleName(r.vehicle);
+const href = `/investigations/${r.slug}/`;
+const s = r.signal;
+---
+
+<article class="rcard">
+  <div class="rcard-tags">
+    {showProblem && <CategoryChip themeId={r.theme.id} />}
+    <ConfidenceBadge level={r.reading.confidence} id={r.slug} />
+    {showTrend && s.surging && <TrendTag />}
+  </div>
+  {showProblem && <p class="overline rcard-vehicle">{vehicle}</p>}
+  <H class="rcard-title">
+    <a href={href} class="rcard-link">{showProblem ? r.theme.name : vehicle}</a>
+  </H>
+  <p class="rcard-reading">{r.reading.label}</p>
+  <p class="rcard-summary">{withoutVehicle(r.headline, vehicle)}</p>
+  <div class="rcard-foot">
+    {s.complaints != null && (
+      <p class="rcard-stat">
+        <span class="stat-num num">{num(s.complaints)}</span>
+        <span class="stat-label">complaints</span>
+      </p>
+    )}
+    <Sparkline monthly={s.monthly_complaints} through={r.data_through} />
+  </div>
+  {s.recall_risk != null && (
+    <p class="rcard-est">
+      Estimated recall chance <span class="num">{percent(s.recall_risk)}</span>
+      <InfoTip id={`${r.slug}-risk`} label="About the estimated recall chance">
+        A model's estimate that a recall covering this problem follows within 24 months. Most
+        flagged problems in past data were never recalled: a reason to look closer, not a
+        prediction.
+      </InfoTip>
+    </p>
+  )}
+</article>
+
+<style>
+  .rcard {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: var(--space-4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    transition:
+      border-color var(--dur) var(--ease),
+      box-shadow var(--dur) var(--ease),
+      transform var(--dur) var(--ease);
+  }
+  .rcard:hover {
+    border-color: color-mix(in srgb, var(--link) 45%, var(--border));
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+  }
+  .rcard:focus-within {
+    border-color: var(--focus);
+  }
+  .rcard-tags {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-3);
+  }
+  .rcard-vehicle {
+    margin: 0 0 var(--space-1);
+  }
+  .rcard-title {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-xl);
+    line-height: 1.2;
+  }
+  .rcard-link {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .rcard-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-lg);
+  }
+  .rcard-link:focus-visible {
+    outline: none;
+  }
+  .rcard-link:focus-visible::after {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+  .rcard:hover .rcard-link {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.15em;
+  }
+  .rcard-reading {
+    margin: 0 0 var(--space-2);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+  .rcard-summary {
+    margin: 0 0 var(--space-3);
+    color: var(--ink-2);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
+  }
+  .rcard-foot {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-top: auto;
+    padding-top: var(--space-3);
+    border-top: 1px solid var(--border);
+  }
+  .rcard-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    margin: 0;
+  }
+  .stat-num {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    line-height: 1;
+  }
+  .stat-label {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+  .rcard-est {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-xs);
+    color: var(--ink-3);
+  }
+</style>

@@ -1,0 +1,61 @@
+---
+// Complaints per month over the last `months` months, as a small line. Decorative: the
+// screen-reader text gives the same story in words, and the report page has the full chart.
+import { monthLabel } from "../lib/format";
+
+interface Props {
+  monthly: { month: string; complaints: number }[];
+  through: string | null;
+  months?: number;
+  width?: number;
+  height?: number;
+}
+const { monthly, through, months = 24, width = 120, height = 32 } = Astro.props;
+
+const idx = (s: string) => Number(s.slice(0, 4)) * 12 + Number(s.slice(5, 7)) - 1;
+const label = (i: number) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+const counts = new Map(monthly.map((m) => [idx(m.month), m.complaints]));
+const last = through ? idx(through) : Math.max(...counts.keys());
+const series = Array.from({ length: months }, (_, i) => counts.get(last - months + 1 + i) ?? 0);
+const max = Math.max(1, ...series);
+const pad = 3;
+const x = (i: number) => pad + (i / (months - 1)) * (width - pad * 2);
+const y = (v: number) => height - pad - (v / max) * (height - pad * 2);
+const line = series.map((v, i) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+const area = `${pad},${height - pad} ${line} ${width - pad},${height - pad}`;
+const peak = series.indexOf(max);
+const text =
+  `Complaints per month over the last ${months} months: peak of ${max} in ` +
+  `${monthLabel(label(last - months + 1 + peak))}, ${series[months - 1]} in the latest month.`;
+---
+
+<span class="spark">
+  <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
+    <polygon points={area} class="area" />
+    <polyline points={line} class="line" />
+    <circle cx={x(months - 1)} cy={y(series[months - 1])} r="2.5" class="dot" />
+  </svg>
+  <span class="sr-only">{text}</span>
+</span>
+
+<style>
+  .spark {
+    display: inline-flex;
+  }
+  .area {
+    fill: var(--series);
+    opacity: 0.12;
+  }
+  .line {
+    fill: none;
+    stroke: var(--series);
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+  }
+  .dot {
+    fill: var(--series);
+    stroke: var(--surface);
+    stroke-width: 2;
+  }
+</style>

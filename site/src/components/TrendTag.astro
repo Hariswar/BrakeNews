@@ -1,0 +1,26 @@
+---
+// Complaints about this problem on this vehicle are still rising beyond what its own past
+// predicts (the surge test). Text plus arrow, not color alone.
+import Icon from "./Icon.astro";
+---
+
+<span class="trend">
+  <Icon name="trend-up" size={16} />
+  Rising now
+</span>
+
+<style>
+  .trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--trend-soft);
+    color: var(--trend);
+    font-size: var(--text-xs);
+    font-weight: 650;
+    white-space: nowrap;
+  }
+</style>

@@ -1,0 +1,82 @@
+---
+// An info button with a tooltip: shown on hover and on keyboard focus (tap on touch screens),
+// dismissed with Escape, kept inside the viewport by the script in Base.astro. The tooltip is
+// the button's accessible description, so screen readers read it on focus too.
+import Icon from "./Icon.astro";
+
+interface Props {
+  id: string; // unique on the page
+  label: string; // accessible name of the button, e.g. "About the recall estimate"
+}
+const { id, label } = Astro.props;
+---
+
+<span class="tip" data-tip>
+  <button type="button" class="tip-btn" aria-describedby={id} aria-label={label}>
+    <Icon name="info" size={16} />
+  </button>
+  <span class="tip-body" role="tooltip" id={id}><slot /></span>
+</span>
+
+<style>
+  .tip {
+    position: relative;
+    display: inline-flex;
+    vertical-align: middle;
+    z-index: 2; /* above a card's full-size link */
+  }
+  .tip-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    margin: -6px -4px; /* bigger target without moving the text around it */
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--ink-3);
+    cursor: help;
+    transition: color var(--dur) var(--ease), background-color var(--dur) var(--ease);
+  }
+  .tip-btn:hover,
+  .tip-btn:focus-visible {
+    color: var(--link);
+    background: var(--brand-soft);
+  }
+  .tip-body {
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    width: max-content;
+    max-width: min(280px, calc(100vw - 32px));
+    padding: var(--space-2) 12px;
+    border-radius: var(--radius-sm);
+    background: var(--ink);
+    color: var(--bg);
+    font-size: var(--text-xs);
+    font-weight: 500;
+    line-height: 1.5;
+    text-align: left;
+    text-transform: none;
+    letter-spacing: 0;
+    white-space: normal;
+    box-shadow: var(--shadow-md);
+    transform: translateX(calc(-50% + var(--shift, 0px)));
+    display: none; /* out of layout while hidden, so it can never widen the page */
+    pointer-events: none;
+  }
+  .tip:hover .tip-body,
+  .tip:focus-within .tip-body {
+    display: block;
+    animation: tip-in var(--dur) var(--ease);
+  }
+  .tip[data-dismissed] .tip-body {
+    display: none;
+  }
+  @keyframes tip-in {
+    from {
+      opacity: 0;
+    }
+  }
+</style>

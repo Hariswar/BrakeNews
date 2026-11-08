@@ -1,140 +1,322 @@
 ---
-import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
-import ReadingBadge from "../components/ReadingBadge.astro";
+import AboutData from "../components/AboutData.astro";
+import CategoryChip from "../components/CategoryChip.astro";
+import Icon from "../components/Icon.astro";
+import ReportCard from "../components/ReportCard.astro";
+import Steps from "../components/Steps.astro";
 import VehiclePicker from "../components/VehiclePicker.astro";
+import method from "../data/method.json";
 import { allModels } from "../lib/vehicles";
-import { monthLabel, num, percent, vehicleName } from "../lib/format";
+import { allReports, groupByProblem, latestDataMonth } from "../lib/reports";
+import { monthLabel, num, percent } from "../lib/format";
 
-const reports = (await getCollection("investigations"))
-  .map((e) => e.data)
-  .sort(
-    (a, b) =>
-      (a.signal.risk_rank ?? Infinity) - (b.signal.risk_rank ?? Infinity) ||
-      a.slug.localeCompare(b.slug),
-  );
-const hasVehicles = (await allModels()).length > 0;
-const through = reports.map((r) => r.data_through).filter(Boolean).sort().at(-1);
+const reports = await allReports();
+const { groups, singles } = groupByProblem(reports);
+const models = await allModels();
+const vehicles = models.reduce((s, m) => s + m.years.length, 0);
+const through = latestDataMonth(reports) ?? (method.data ? `${method.data.last_received}-01` : null);
+// "Rising now" says something only when some reports are rising and others are not.
+const allRising = reports.length > 0 && reports.every((r) => r.signal.surging);
+const bt = method.backtest;
 ---
 
 <Base
   title="BrakeNews: car problems and recall risk from owner complaints"
   description="Which car problems owners are reporting far more than they should, often before a recall exists, with AI-written reports on the strongest signals."
+  layout="bare"
 >
-  <section class="intro">
-    <h1>Car problems owners report, before a recall</h1>
-    <p>
-      BrakeNews reads the 1.6 million complaints owners have filed with NHTSA, groups them into
-      specific problems, and flags vehicles where a problem shows up far more often than it does
-      on other vehicles or than it used to. In past data, most problems that were later recalled
-      were flagged this way first, typically more than a year ahead.
-    </p>
-    {hasVehicles && (
-      <>
-        <h2 class="find">Look up a vehicle</h2>
-        <VehiclePicker />
-        <p class="small"><a href="/vehicles/">Browse all makes</a></p>
-      </>
-    )}
-  </section>
-
-  <section id="reports" aria-labelledby="reports-h">
-    <h2 id="reports-h">Current reports</h2>
-    <p class="muted small">
-      Problems with the highest estimated chance of a recall that does not exist yet, each
-      investigated against the complaints themselves.
-      {through && ` NHTSA data through ${monthLabel(through, true)}.`}
-    </p>
-
-    {reports.length === 0 ? (
-      <p>No reports are published yet.</p>
-    ) : (
-      <ol class="cards">
-        {reports.map((r) => (
-          <li class="card">
-            <h3>
-              <a href={`/investigations/${r.slug}/`}>
-                {vehicleName(r.vehicle)}: <span class="theme">{r.theme.name.toLowerCase()}</span>
-              </a>
-            </h3>
-            <ReadingBadge label={r.reading.label} confidence={r.reading.confidence} surging={r.signal.surging} />
-            <p>{r.headline}</p>
-            <p class="meta small muted num">
-              {r.signal.complaints != null && `${num(r.signal.complaints)} complaints`}
-              {r.signal.recall_risk != null && ` · estimated recall chance ${percent(r.signal.recall_risk)}`}
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="overline">Early warnings from NHTSA owner complaints</p>
+        <h1 id="hero-title">Car problems owners report, before a recall</h1>
+        <p class="lead">
+          BrakeNews reads the 1.6 million complaints owners have filed with NHTSA, groups them into
+          specific problems, and flags vehicles where a problem shows up far more often than it does
+          on other vehicles or than it used to. In past data, most problems that were later recalled
+          were flagged this way first, typically more than a year ahead.
+        </p>
+        <ul class="trust" aria-label="About the data">
+          <li><Icon name="database" size={16} /> Data: NHTSA complaints &amp; recalls</li>
+          {through && <li><Icon name="calendar" size={16} /> Data through {monthLabel(through, true)}</li>}
+          <li><Icon name="info" size={16} /> <a href="/method/">How it works</a></li>
+        </ul>
+      </div>
+      <div class="lookup panel" id="lookup">
+        <h2 class="lookup-title">Look up a vehicle</h2>
+        {models.length > 0 ? (
+          <>
+            <p class="lookup-sub">
+              {num(vehicles)} vehicles with at least 25 owner complaints.
             </p>
-          </li>
-        ))}
-      </ol>
+            <VehiclePicker />
+            <p class="browse">
+              <a href="/vehicles/" class="link-arrow">Browse all makes <Icon name="arrow-right" size={16} /></a>
+            </p>
+          </>
+        ) : (
+          <p class="lookup-sub">
+            Vehicle pages are not built in this copy of the site. Run <code>make export</code>, then
+            build the site.
+          </p>
+        )}
+      </div>
+    </div>
+    {method.data && bt && (
+      <div class="container">
+        <dl class="numbers">
+          <div>
+            <dt>Complaints read</dt>
+            <dd class="num">{num(method.data.complaints)}</dd>
+          </div>
+          <div>
+            <dt>Later-recalled problems flagged first, in past data</dt>
+            <dd class="num">{percent(bt.flagged_before_recall)}</dd>
+          </div>
+          <div>
+            <dt>Median warning before the recall</dt>
+            <dd class="num">{bt.median_months_ahead} months</dd>
+          </div>
+        </dl>
+      </div>
     )}
   </section>
 
-  <section aria-labelledby="how-h" class="how">
-    <h2 id="how-h">How the reports are made</h2>
-    <ol>
-      <li>Complaint narratives are grouped into problems by their meaning, not NHTSA's broad component codes.</li>
-      <li>
-        Each vehicle and problem is scored: how much more often its complaints are about the problem
-        than other vehicles' are, whether it is rising against the vehicle's own history, and a model's
-        estimate that a recall follows within 24 months.
-      </li>
-      <li>An AI checks that the recent complaints behind a flag are really about that problem on that vehicle.</li>
-      <li>
-        An AI investigator reads the complaints and recalls and writes the report; a second AI checks every
-        claim against the cited complaints. Only reports it approves are published. No person reviews them.
-      </li>
-    </ol>
-    <p class="small muted">
-      A report describes what owners report. It is not a finding that a defect exists, and a high
-      score does not mean a recall will happen.
-    </p>
-    <p><a href="/method/">How it works, and how often past flags were followed by a recall</a></p>
-  </section>
+  <div class="container">
+    <section class="section" id="reports" aria-labelledby="reports-h">
+      <div class="section-head">
+        <h2 id="reports-h">Current reports</h2>
+        <a href="/reports/" class="link-arrow">All reports and filters <Icon name="arrow-right" size={16} /></a>
+      </div>
+      <p class="section-intro prose">
+        Problems with the highest estimated chance of a recall that does not exist yet, each
+        investigated against the complaints themselves.
+        {through && ` NHTSA data through ${monthLabel(through, true)}.`}
+      </p>
+      {allRising && (
+        <p class="rising-note">
+          <Icon name="trend-up" size={18} />
+          Complaints are still rising for every problem below, beyond what each vehicle's own past
+          predicts.
+        </p>
+      )}
+
+      {reports.length === 0 && (
+        <p class="empty panel">No reports are published yet. Check back after the next data update.</p>
+      )}
+
+      {groups.map((g) => (
+        <section class="group" aria-labelledby={`g-${g.themeId}`}>
+          <header class="group-head">
+            <CategoryChip themeId={g.themeId} />
+            <h3 id={`g-${g.themeId}`} class="group-title">{g.name}</h3>
+            <p class="group-sub">Reported on {g.reports.length} vehicles</p>
+          </header>
+          <ul class="card-grid" role="list">
+            {g.reports.map((r) => (
+              <li>
+                <ReportCard report={r} showProblem={false} showTrend={!allRising} heading="h4" />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+
+      {singles.length > 0 && (
+        <section class="group" aria-labelledby="g-other">
+          <header class="group-head">
+            <h3 id="g-other" class="group-title">{groups.length ? "Other problems" : "Problems"}</h3>
+          </header>
+          <ul class="card-grid" role="list">
+            {singles.map((r) => (
+              <li>
+                <ReportCard report={r} showTrend={!allRising} heading="h4" />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      <AboutData>
+        <p>
+          Each report is written by an AI (Claude) from public NHTSA complaint and recall data, and
+          fact-checked against the cited complaints by a second AI. No person reviews them. A report
+          describes what owners report. It is not a finding that a defect exists, and a high score
+          does not mean a recall will happen.
+        </p>
+      </AboutData>
+    </section>
+
+    <section class="section how" aria-labelledby="how-h">
+      <div class="section-head">
+        <h2 id="how-h">How the reports are made</h2>
+      </div>
+      <Steps />
+      <p class="how-cta">
+        <a href="/method/" class="btn btn-secondary">
+          Read the full method and track record <Icon name="arrow-right" size={18} />
+        </a>
+      </p>
+    </section>
+  </div>
 </Base>
 
 <style>
-  .intro h1 {
-    font-size: 2.1rem;
+  .hero {
+    padding: var(--space-6) 0 var(--space-5);
+    background:
+      radial-gradient(1200px 400px at 85% -10%, var(--brand-soft), transparent 70%),
+      linear-gradient(to bottom, var(--surface-2), var(--bg));
+    border-bottom: 1px solid var(--border);
   }
-  .find {
-    margin-top: 1.5rem;
-  }
-  .intro p {
-    font-size: 1.15rem;
-    color: var(--ink-2);
-  }
-  .cards {
-    list-style: none;
-    padding: 0;
-    margin: 1rem 0 0;
+  .hero-grid {
     display: grid;
-    gap: 1rem;
+    gap: var(--space-5);
+    align-items: center;
   }
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    padding: 1rem 1.25rem 0.5rem;
+  @media (min-width: 1000px) {
+    .hero-grid {
+      grid-template-columns: 1.15fr 1fr;
+      gap: var(--space-6);
+    }
   }
-  .card h3 {
-    margin: 0;
-    font-size: 1.15rem;
+  .hero-copy h1 {
+    margin-top: var(--space-2);
+    max-width: 18ch;
   }
-  .card h3 a {
-    color: var(--ink);
-    text-decoration: none;
+  .hero-copy .lead {
+    max-width: 60ch;
   }
-  .card h3 a:hover {
-    text-decoration: underline;
-  }
-  .card .theme {
-    font-weight: 500;
+  .trust {
+    list-style: none;
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2) var(--space-4);
+    font-size: var(--text-sm);
     color: var(--ink-2);
   }
-  .meta {
-    margin-bottom: 0.5rem;
+  .trust li {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
-  .how li {
-    margin-bottom: 0.5rem;
+  .trust :global(.icon) {
+    color: var(--ink-3);
+  }
+  .lookup {
+    padding: var(--space-4);
+  }
+  @media (min-width: 640px) {
+    .lookup {
+      padding: var(--space-5);
+    }
+  }
+  .lookup-title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-xl);
+  }
+  .lookup-sub {
+    margin: 0 0 var(--space-4);
+    color: var(--ink-3);
+    font-size: var(--text-sm);
+  }
+  .browse {
+    margin: var(--space-3) 0 0;
+    font-size: var(--text-sm);
+  }
+  .numbers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: var(--space-3) var(--space-5);
+    margin: var(--space-5) 0 0;
+    padding: var(--space-4) 0 0;
+    border-top: 1px solid var(--border);
+  }
+  .numbers div {
+    display: flex;
+    flex-direction: column;
+  }
+  .numbers dd {
+    order: -1; /* number first, label under it, all numbers on one line */
+  }
+  .numbers dt {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+  .numbers dd {
+    margin: 0;
+    font-family: var(--font-display-stack);
+    font-size: var(--text-2xl);
+    font-weight: 650;
+    line-height: 1.2;
+  }
+  .section-intro {
+    color: var(--ink-2);
+    margin-bottom: var(--space-3);
+  }
+  .rising-note {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    margin: 0 0 var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-sm);
+    background: var(--trend-soft);
+    color: var(--ink);
+    font-size: var(--text-sm);
+  }
+  .rising-note :global(.icon) {
+    color: var(--trend);
+  }
+  .group {
+    margin: var(--space-5) 0 var(--space-6);
+  }
+  .group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-3);
+    padding-bottom: var(--space-2);
+    border-bottom: 2px solid var(--ink);
+  }
+  .group-title {
+    margin: 0;
+    font-size: var(--text-xl);
+  }
+  .group-sub {
+    margin: 0 0 0 auto;
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+  }
+  .card-grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 700px) {
+    .card-grid {
+      grid-template-columns: repeat(2, 1fr);
+      gap: var(--space-4);
+    }
+  }
+  @media (min-width: 1040px) {
+    .card-grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  .empty {
+    padding: var(--space-5);
+    text-align: center;
+    color: var(--ink-2);
+  }
+  .how-cta {
+    margin-top: var(--space-5);
   }
 </style>

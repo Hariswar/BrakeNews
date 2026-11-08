@@ -3,6 +3,7 @@
 // and carry a label, never color alone.
 import { dateLabel, nhtsaRecallUrl, num } from "../lib/format";
 import { nameWords, readable, type Recall } from "../lib/vehicles";
+import Icon from "./Icon.astro";
 
 interface Props {
   id: string;
@@ -17,15 +18,18 @@ const components = r.components.map((c) => readable(c)?.toLowerCase().replace(/:
 
 <li class="recall" id={`recall-${id}`}>
   <p class="head">
-    <a class="mono id" href={nhtsaRecallUrl(id)} rel="noopener">{id}</a>
+    <span class="id-label">NHTSA recall #<a class="mono id" href={nhtsaRecallUrl(id)} rel="noopener">{id}</a></span>
     {r.date && <span class="small muted">{dateLabel(r.date)}</span>}
     {r.affected != null && r.affected > 0 && <span class="small muted">{num(r.affected)} vehicles affected</span>}
   </p>
   {(r.do_not_drive || r.park_outside) && (
     <p class="warn small">
-      <strong>⚠ {r.do_not_drive ? "Do not drive" : "Park outside"}</strong>
+      <Icon name="alert" size={18} />
+      <span>
+      <strong>{r.do_not_drive ? "Do not drive" : "Park outside"}</strong>
       {r.do_not_drive && r.park_outside && <strong>, park outside</strong>}
       {": NHTSA advises this until the repair is done."}
+      </span>
     </p>
   )}
   {components && <p class="small muted comp">{components}</p>}
@@ -41,7 +45,7 @@ const components = r.components.map((c) => readable(c)?.toLowerCase().replace(/:
 
 <style>
   .recall {
-    border-top: 1px solid var(--rule);
+    border-top: 1px solid var(--border);
     padding: 0.75rem 0 0.25rem;
   }
   .head {
@@ -57,10 +61,23 @@ const components = r.components.map((c) => readable(c)?.toLowerCase().replace(/:
   .comp {
     margin-bottom: 0.4rem;
   }
+  .id-label {
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
   .warn {
-    border-left: 4px solid #d03b3b;
-    padding-left: 0.6rem;
-    margin-bottom: 0.5rem;
+    display: flex;
+    gap: var(--space-2);
+    align-items: flex-start;
+    padding: var(--space-2) 12px;
+    margin-bottom: var(--space-2);
+    background: var(--critical-soft);
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+  }
+  .warn :global(.icon) {
+    color: var(--critical);
+    margin-top: 2px;
   }
   p {
     margin-bottom: 0.5rem;
@@ -70,7 +87,7 @@ const components = r.components.map((c) => readable(c)?.toLowerCase().replace(/:
     color: var(--link);
   }
   .recall:target {
-    background: var(--callout);
+    background: var(--surface-2);
     outline: 2px solid var(--accent);
     outline-offset: 4px;
     border-radius: 2px;

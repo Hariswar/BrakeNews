@@ -1,0 +1,59 @@
+---
+// How sure the AI investigator is of its reading. Shown as signal bars (3 / 2 / 1 filled) plus
+// the word, never by color alone, with an explanation behind the info button.
+import InfoTip from "./InfoTip.astro";
+
+interface Props {
+  level: "low" | "medium" | "high";
+  id: string; // unique per page, for the tooltip
+}
+const { level, id } = Astro.props;
+const filled = { high: 3, medium: 2, low: 1 }[level];
+const word = level[0].toUpperCase() + level.slice(1);
+---
+
+<span class={`conf conf-${level}`}>
+  <svg class="bars" width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+    {[0, 1, 2].map((i) => (
+      <rect x={i * 5} y={10 - i * 4} width="3.5" height={4 + i * 4} rx="1" class={i < filled ? "on" : "off"} />
+    ))}
+  </svg>
+  {word} confidence
+</span>
+<InfoTip id={`${id}-conf`} label={`What ${word.toLowerCase()} confidence means`}>
+  How sure the AI investigator is of its reading of the complaints. High: the evidence points
+  clearly one way. Medium: it supports the reading but is thinner or mixed. Low: little to go on.
+</InfoTip>
+
+<style>
+  .conf {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 28px;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: var(--text-xs);
+    font-weight: 650;
+    white-space: nowrap;
+  }
+  .conf-high {
+    background: var(--conf-high-soft);
+    color: var(--conf-high);
+  }
+  .conf-medium {
+    background: var(--conf-med-soft);
+    color: var(--conf-med);
+  }
+  .conf-low {
+    background: var(--conf-low-soft);
+    color: var(--conf-low);
+  }
+  .bars .on {
+    fill: currentColor;
+  }
+  .bars .off {
+    fill: currentColor;
+    opacity: 0.25;
+  }
+</style>

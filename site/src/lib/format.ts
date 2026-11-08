@@ -80,3 +80,13 @@ export function percent(p: number): string {
 export function plural(n: number, one: string, many = `${one}s`): string {
   return `${num(n)} ${n === 1 ? one : many}`;
 }
+
+// "2026 Honda Odyssey: Auto Idle Stop fails..." -> "Auto Idle Stop fails..." when the card
+// already names the vehicle. Only an exact vehicle-name prefix is dropped, so a more specific
+// one ("2024 Jeep Wrangler 4xe: ...") is kept as written.
+export function withoutVehicle(headline: string, vehicle: string): string {
+  const prefix = `${vehicle}:`;
+  if (!headline.toLowerCase().startsWith(prefix.toLowerCase())) return headline;
+  const rest = headline.slice(prefix.length).trim();
+  return rest ? rest[0].toUpperCase() + rest.slice(1) : headline;
+}

@@ -1,27 +1,56 @@
 ---
-// Make -> model -> year, filled from /vehicles/index.json. Without JavaScript the browse link
-// still gets a reader to every vehicle.
+// Make -> model -> year, filled from /vehicles/index.json. Each field stays disabled until the
+// one before it is chosen. Loading and error states are announced; without JavaScript the
+// browse link still reaches every vehicle.
+import Icon from "./Icon.astro";
+
+interface Props {
+  idPrefix?: string; // keeps label ids unique if the picker appears twice on a page
+}
+const { idPrefix = "pick" } = Astro.props;
 ---
 
-<form class="picker" data-picker action="/vehicles/" aria-label="Find a vehicle">
-  <label>
-    <span class="small">Make</span>
-    <select name="make" disabled required><option value="">Loading…</option></select>
-  </label>
-  <label>
-    <span class="small">Model</span>
-    <select name="model" disabled required><option value="">Choose a make</option></select>
-  </label>
-  <label>
-    <span class="small">Year</span>
-    <select name="year" disabled required><option value="">Choose a model</option></select>
-  </label>
-  <button type="submit" disabled>Show</button>
-  <noscript><p class="small">Browse <a href="/vehicles/">all makes</a>.</p></noscript>
+<form class="picker" data-picker action="/vehicles/" aria-label="Look up a vehicle" novalidate>
+  <div class="fields">
+    <div class="field">
+      <label for={`${idPrefix}-make`}>Make</label>
+      <div class="select-wrap">
+        <select id={`${idPrefix}-make`} name="make" disabled required>
+          <option value="">Loading makes…</option>
+        </select>
+        <span class="spinner" data-spinner aria-hidden="true"></span>
+      </div>
+    </div>
+    <div class="field">
+      <label for={`${idPrefix}-model`}>Model</label>
+      <div class="select-wrap">
+        <select id={`${idPrefix}-model`} name="model" disabled required>
+          <option value="">Choose a make first</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for={`${idPrefix}-year`}>Model year</label>
+      <div class="select-wrap">
+        <select id={`${idPrefix}-year`} name="year" disabled required>
+          <option value="">Choose a model first</option>
+        </select>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary go" disabled>
+      See reports <Icon name="arrow-right" size={18} />
+    </button>
+  </div>
+  <p class="hint" data-status role="status" aria-live="polite">Loading the vehicle list…</p>
+  <noscript>
+    <p class="hint">The lookup needs JavaScript. <a href="/vehicles/">Browse all makes</a> instead.</p>
+  </noscript>
 </form>
 
 <script>
   type Index = [string, string, [string, string, number[]][]][];
+  const HINT =
+    "Opens the vehicle's page: the problems owners report, flags, recalls and any reports.";
 
   function fill(select: HTMLSelectElement, prompt: string, options: [string, string][]) {
     select.replaceChildren(new Option(prompt, ""), ...options.map(([label, value]) => new Option(label, value)));
@@ -32,7 +61,9 @@
     const [make, model, year] = ["make", "model", "year"].map(
       (n) => form.elements.namedItem(n) as HTMLSelectElement,
     );
-    const button = form.querySelector("button")!;
+    const button = form.querySelector<HTMLButtonElement>("button.go")!;
+    const status = form.querySelector<HTMLElement>("[data-status]")!;
+    const spinner = form.querySelector<HTMLElement>("[data-spinner]");
     let index: Index = [];
     const models = () => index.find((m) => m[1] === make.value)?.[2] ?? [];
     const update = () => {
@@ -40,69 +71,136 @@
     };
 
     fetch("/vehicles/index.json")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(String(r.status));
+        return r.json();
+      })
       .then((data: Index) => {
         index = data;
-        fill(make, "Choose…", index.map(([label, slug]) => [label, slug]));
+        if (!index.length) throw new Error("empty");
+        fill(make, "Choose a make", index.map(([label, slug]) => [label, slug]));
+        status.textContent = HINT;
       })
-      .catch(() => fill(make, "Could not load vehicles", []));
+      .catch(() => {
+        make.replaceChildren(new Option("Unavailable", ""));
+        status.replaceChildren(
+          "Couldn't load the vehicle list. ",
+          Object.assign(document.createElement("a"), { href: "/vehicles/", textContent: "Browse all makes" }),
+          " instead.",
+        );
+        form.classList.add("is-error");
+      })
+      .finally(() => spinner?.remove());
 
     make.addEventListener("change", () => {
-      fill(model, "Choose…", models().map(([label, slug]) => [label, slug]));
-      fill(year, "Choose a model", []);
+      fill(model, make.value ? "Choose a model" : "Choose a make first", models().map(([label, slug]) => [label, slug]));
+      fill(year, "Choose a model first", []);
       update();
     });
     model.addEventListener("change", () => {
       const years = models().find((m) => m[1] === model.value)?.[2] ?? [];
-      fill(year, "Choose…", years.map((y) => [String(y), String(y)]));
+      fill(year, model.value ? "Choose a year" : "Choose a model first", years.map((y) => [String(y), String(y)]));
       update();
     });
     year.addEventListener("change", update);
     form.addEventListener("submit", (e) => {
       e.preventDefault();
-      if (year.value) location.href = `/vehicles/${make.value}/${model.value}/${year.value}/`;
+      if (!year.value) return;
+      button.disabled = true;
+      status.textContent = "Opening…";
+      location.href = `/vehicles/${make.value}/${model.value}/${year.value}/`;
     });
   }
 </script>
 
 <style>
   .picker {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    align-items: flex-end;
-    padding: 1rem;
-    background: var(--surface);
-    border: 1px solid var(--rule);
-    border-radius: 8px;
-    margin: 1rem 0;
+    container-type: inline-size;
   }
-  label {
+  .fields {
+    display: grid;
+    gap: var(--space-3);
+    grid-template-columns: 1fr;
+  }
+  @container (min-width: 640px) {
+    .fields {
+      grid-template-columns: 1fr 1fr 1fr auto;
+      align-items: end;
+    }
+  }
+  .field {
     display: flex;
     flex-direction: column;
-    gap: 0.2rem;
-    flex: 1 1 9rem;
-    color: var(--ink-2);
+    gap: 6px;
   }
-  select,
-  button {
-    font: inherit;
-    padding: 0.4rem 0.5rem;
-    border: 1px solid var(--axis);
-    border-radius: 6px;
-    background: var(--page);
+  label {
+    font-size: var(--text-sm);
+    font-weight: 600;
     color: var(--ink);
   }
-  button {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #fff;
-    font-weight: 600;
-    padding: 0.4rem 1.1rem;
-    cursor: pointer;
+  .select-wrap {
+    position: relative;
   }
-  button:disabled {
-    opacity: 0.5;
-    cursor: default;
+  select {
+    width: 100%;
+    min-height: 48px;
+    padding: 0 40px 0 14px;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    background-color: var(--surface);
+    background-image: linear-gradient(45deg, transparent 50%, var(--ink-2) 50%),
+      linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+    background-position:
+      calc(100% - 20px) 50%,
+      calc(100% - 15px) 50%;
+    background-size: 5px 5px;
+    background-repeat: no-repeat;
+    color: var(--ink);
+    font: 500 var(--text-base) / 1.2 var(--font-body-stack);
+    appearance: none;
+    cursor: pointer;
+    transition: border-color var(--dur) var(--ease);
+  }
+  select:hover:not(:disabled) {
+    border-color: var(--ink-2);
+  }
+  select:disabled {
+    background-color: var(--surface-2);
+    color: var(--ink-3);
+    cursor: not-allowed;
+  }
+  .spinner {
+    position: absolute;
+    right: 36px;
+    top: 50%;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    border: 2px solid var(--border);
+    border-top-color: var(--link);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  .go {
+    min-height: 48px;
+    width: 100%;
+  }
+  @container (min-width: 640px) {
+    .go {
+      width: auto;
+    }
+  }
+  .hint {
+    margin: var(--space-2) 0 0;
+    font-size: var(--text-sm);
+    color: var(--ink-3);
+  }
+  .is-error .hint {
+    color: var(--ink);
   }
 </style>

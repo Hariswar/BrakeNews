@@ -1,0 +1,98 @@
+---
+// Site footer: the disclaimer (wording unchanged), links, and how current the data is.
+import Icon from "./Icon.astro";
+import method from "../data/method.json";
+import { monthLabel } from "../lib/format";
+
+const through = method.data?.last_received ? monthLabel(method.data.last_received, true) : null;
+---
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div class="footer-about">
+      <p class="footer-brand">BrakeNews</p>
+      <p class="disclaimer">
+        BrakeNews summarizes public NHTSA complaint and recall data. It is not safety advice, and
+        it is not affiliated with or endorsed by NHTSA. Check your vehicle's open recalls at{" "}
+        <a href="https://www.nhtsa.gov/recalls" rel="noopener">nhtsa.gov/recalls</a>.
+      </p>
+    </div>
+    <nav class="footer-links" aria-label="Footer">
+      <p class="overline">Explore</p>
+      <ul>
+        <li><a href="/reports/">Reports</a></li>
+        <li><a href="/vehicles/">Vehicles</a></li>
+        <li><a href="/method/">How it works</a></li>
+        <li><a href="https://github.com/Hariswar/BrakeNews" rel="noopener">Source code</a></li>
+      </ul>
+    </nav>
+    <div class="footer-data">
+      <p class="overline">Data</p>
+      <ul>
+        <li>NHTSA owner complaints and recalls</li>
+        {through && (
+          <li class="updated">
+            <Icon name="calendar" size={16} /> Data through {through}
+          </li>
+        )}
+        <li>
+          <a href="https://www.nhtsa.gov/recalls" rel="noopener" class="ext">
+            Check recalls for your VIN <Icon name="external" size={14} />
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .site-footer {
+    margin-top: var(--space-8);
+    padding: var(--space-6) 0 var(--space-5);
+    background: var(--surface-2);
+    border-top: 1px solid var(--border);
+    font-size: var(--text-sm);
+    color: var(--ink-2);
+  }
+  .footer-grid {
+    display: grid;
+    gap: var(--space-5);
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 768px) {
+    .footer-grid {
+      grid-template-columns: 2fr 1fr 1fr;
+    }
+  }
+  .footer-brand {
+    font-family: var(--font-display-stack);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--ink);
+    margin: 0 0 var(--space-2);
+  }
+  .disclaimer {
+    max-width: 52ch;
+    margin: 0;
+  }
+  ul {
+    list-style: none;
+    margin: var(--space-2) 0 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+  .overline {
+    margin: 0;
+  }
+  .updated {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .ext {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+</style>

@@ -1,0 +1,110 @@
+---
+// How a report is made, as a numbered 4-step stepper: across on wide screens, down on narrow.
+import Icon from "./Icon.astro";
+
+const steps = [
+  {
+    icon: "layers",
+    title: "Group",
+    text: "Complaint narratives are grouped into problems by their meaning, not NHTSA's broad component codes.",
+  },
+  {
+    icon: "chart",
+    title: "Score",
+    text: "Each vehicle and problem is scored: how much more often its complaints are about the problem than other vehicles' are, whether it is rising against the vehicle's own history, and a model's estimate that a recall follows within 24 months.",
+  },
+  {
+    icon: "check-circle",
+    title: "Check",
+    text: "An AI checks that the recent complaints behind a flag are really about that problem on that vehicle.",
+  },
+  {
+    icon: "file-check",
+    title: "Investigate & review",
+    text: "An AI investigator reads the complaints and recalls and writes the report; a second AI checks every claim against the cited complaints. Only reports it approves are published. No person reviews them.",
+  },
+] as const;
+---
+
+<ol class="steps">
+  {steps.map((s, i) => (
+    <li class="step">
+      <span class="step-icon">
+        <Icon name={s.icon} size={22} />
+      </span>
+      <p class="step-num overline">Step {i + 1}</p>
+      <h3 class="step-title">{s.title}</h3>
+      <p class="step-text">{s.text}</p>
+    </li>
+  ))}
+</ol>
+
+<style>
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-4);
+    grid-template-columns: 1fr;
+    counter-reset: step;
+  }
+  .step {
+    position: relative;
+    padding-left: calc(48px + var(--space-3));
+  }
+  .step-icon {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: grid;
+    place-items: center;
+    width: 48px;
+    height: 48px;
+    border-radius: 999px;
+    background: var(--brand-soft);
+    color: var(--link);
+    border: 1px solid color-mix(in srgb, var(--link) 25%, transparent);
+  }
+  /* the connecting line */
+  .step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 23px;
+    top: 52px;
+    bottom: calc(-1 * var(--space-4) + 4px);
+    width: 2px;
+    background: var(--border);
+  }
+  .step-num {
+    margin: 2px 0 0;
+    color: var(--ink-3);
+  }
+  .step-title {
+    margin: 0 0 var(--space-1);
+    font-size: var(--text-lg);
+  }
+  .step-text {
+    margin: 0;
+    color: var(--ink-2);
+    font-size: var(--text-sm);
+  }
+  @media (min-width: 900px) {
+    .steps {
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-5);
+    }
+    .step {
+      padding-left: 0;
+      padding-top: calc(48px + var(--space-3));
+    }
+    .step:not(:last-child)::after {
+      left: 56px;
+      right: calc(-1 * var(--space-5) + 8px);
+      top: 23px;
+      bottom: auto;
+      width: auto;
+      height: 2px;
+    }
+  }
+</style>

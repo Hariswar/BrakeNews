@@ -1,5 +1,6 @@
 """Phase 5, part 2: data for the site's vehicle pages (no API calls)
--> site/src/data/vehicles/<make>--<model>.json and theme names site/src/data/themes.json.
+-> site/src/data/vehicles/<make>--<model>.json and theme names site/src/data/themes.json (with
+   each theme's most common NHTSA component group, which the site maps to a category icon).
 
 The vehicle files are about 20 MB and change with every data refresh, so they are not committed
 (.gitignore): the site builds without them (no vehicle pages), and a full build runs locally
@@ -117,6 +118,28 @@ def load(clean: Path = CLEAN, min_complaints: int = MIN_COMPLAINTS) -> dict:
           AND t.fit_id = (SELECT any_value(fit_id) FROM '{p['clusters/clusters.parquet']}')
     """)
     themes = dict(con.sql("SELECT theme_id, theme_name FROM theme ORDER BY 1").fetchall())
+    # Each theme's most common NHTSA component group over its complaints' component rows,
+    # "UNKNOWN OR OTHER" only when nothing else is named.
+    groups: dict[int, str] = {}
+    a = (clean / "clusters" / "assignments.parquet").as_posix()
+    n = (clean / "narratives.parquet").as_posix()
+    if Path(a).exists() and Path(n).exists():
+        names = (clean / "clusters" / "names.parquet").as_posix()
+        groups = dict(con.sql(f"""
+            WITH cl AS (SELECT DISTINCT t.cluster_id, t.theme_id
+                        FROM '{p['clusters/themes.parquet']}' t
+                        JOIN '{names}' n USING (fit_id, cluster_id)
+                        WHERE n.kind = 'defect' AND t.fit_id = (
+                            SELECT any_value(fit_id) FROM '{p['clusters/clusters.parquet']}')),
+            g AS (SELECT cl.theme_id, c.component_group AS grp, count(*) AS k
+                  FROM '{p['complaints.parquet']}' c
+                  JOIN '{n}' nr USING (complaint_id)
+                  JOIN '{a}' a USING (narrative_id)
+                  JOIN cl USING (cluster_id)
+                  WHERE c.component_group IS NOT NULL
+                  GROUP BY ALL)
+            SELECT theme_id, arg_max(grp, (grp <> 'UNKNOWN OR OTHER', k)) FROM g GROUP BY 1
+        """).fetchall())
 
     # Recalls of these vehicles, and which of the vehicle's themes each one covers.
     con.execute(f"""
@@ -164,6 +187,7 @@ def load(clean: Path = CLEAN, min_complaints: int = MIN_COMPLAINTS) -> dict:
         ORDER BY s.make, s.model, s.model_year, s.complaints DESC, s.theme_id
     """)
     return {"through": through, "vehicles": vehicles, "monthly": monthly, "themes": themes,
+            "theme_groups": groups,
             "recalls": recalls, "vehicle_recalls": vehicle_recalls, "covering": covering,
             "pairs": pair_rows}
 
@@ -331,8 +355,12 @@ def run(clean: Path = CLEAN, out: Path = SITE_DATA,
         if f.stem not in names:
             f.unlink()
             removed += 1
-    _write(out / "themes.json", {"schema_version": SCHEMA_VERSION,
-                                 "themes": {str(k): v for k, v in data["themes"].items()}})
+    _write(out / "themes.json", {
+        "schema_version": SCHEMA_VERSION,
+        "themes": {str(k): v for k, v in data["themes"].items()},
+        "component_groups": {str(k): v for k, v in data.get("theme_groups", {}).items()
+                             if k in data["themes"]},
+    })
 
     years = sum(len(m["years"]) for m in index)
     flagged = sum(len(m["flagged"]) for m in index)

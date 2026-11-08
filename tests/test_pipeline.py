@@ -1329,6 +1329,8 @@ def test_vehicle_export(tmp_path: Path):
                              "theme_name": ["Brakes fail", "Airbag light on"]}),
                    tmp_path / "clusters" / "themes.parquet")
     complaints = pq.read_table(tmp_path / "complaints.parquet").to_pylist()
+    for r in complaints:
+        r["component_group"] = r["component"]
     for m in range(1, 13):
         i = str(1000 + m)
         complaints.append({**complaints[-1], "complaint_id": i, "odi_number": i, "model": "CR V",
@@ -1366,6 +1368,8 @@ def test_vehicle_export(tmp_path: Path):
     assert ford["recalls"]["21V001000"]["remedy"] == "DEALERS WILL FIX IT."
     themes = json.loads((out / "themes.json").read_text())["themes"]
     assert themes == {"0": "Brakes fail", "1": "Airbag light on"}
+    groups = json.loads((out / "themes.json").read_text())["component_groups"]
+    assert groups == {"0": "SERVICE BRAKES", "1": "AIR BAGS"}
 
     before = (out / "vehicles" / "ford--f-150.json").stat().st_mtime_ns
     vehicles.run(clean=tmp_path, out=out, min_complaints=10)
