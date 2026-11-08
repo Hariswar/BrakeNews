@@ -1,6 +1,6 @@
 {
   "data_through": "2026-10-01",
-  "failure_pattern": "Within the first few thousand miles, the steering wheel makes a repeating click or 'spring on a gear' noise during rotation, loudest at low speed and near full lock. Some owners also feel stiffness or binding. Dealers placed it at the clock spring (cable reel) behind the airbag module in two cases, and several owners suspect the same part. Dealers have adjusted the column or replaced the cable reel, sometimes adding felt tape, and the noise has come back within days or a few hundred miles.",
+  "failure_pattern": "The noise is a click, tick or 'spring on a gear' sound from the steering column, behind the airbag area. It happens when the wheel is turned, especially at low speed and toward full lock. It starts early in ownership, on vehicles with low mileage. In some cases the wheel feels stiff or binds. Dealer repairs described are adjusting the column, replacing the clock spring, and wrapping it in felt tape. The noise is reported to come back within days to a few hundred miles after these repairs. One owner suspects the steering rack instead.",
   "findings": [
     {
       "complaints": [
@@ -8,73 +8,61 @@
         "11772274",
         "11769005",
         "11766276",
-        "11766069",
         "11764493",
         "11761677",
         "11761451",
         "11760496",
+        "11759960"
+      ],
+      "text": "Separate owners describe the same symptom: clicking from the steering wheel or column when turning, often at low speed or full lock."
+    },
+    {
+      "complaints": [
+        "11766069",
+        "11744903",
+        "11745482",
+        "11772274"
+      ],
+      "text": "Dealer clock-spring (cable reel) replacements reportedly did not fix the noise. One owner had the clock spring replaced twice and wrapped in felt tape, and the clicking returned each time. Another owner had the column adjusted, then the cable reel replaced, and the click returned by about 3,847 miles. A third owner repeats reports from others that the noise came back after clock-spring replacement."
+    },
+    {
+      "complaints": [
+        "11766069",
+        "11772274",
+        "11769005",
         "11759960",
         "11744903"
       ],
-      "text": "The same symptom, steering-wheel clicking during rotation, appears in complaints from 11 independent owners."
-    },
-    {
-      "complaints": [
-        "11744903",
-        "11745482",
-        "11766069",
-        "11766276",
-        "11764493",
-        "11772274"
-      ],
-      "text": "In two cases a dealer diagnosed or replaced the clock spring (cable reel): one owner's two filings and one other owner. In three other complaints the owner only speculates. One names 'the steering rack or the cable reel', one names the airbag mechanism or the clock spring, and one repeats what other owners have reported."
-    },
-    {
-      "complaints": [
-        "11766069",
-        "11745482",
-        "11744903",
-        "11772274"
-      ],
-      "text": "Dealer repairs failed. In one case the clock spring was replaced twice and wrapped in felt tape, and the noise returned within days or a few hundred miles. In another, the column was adjusted and then the cable reel replaced, and the replacement parts failed right away. A third owner had heard that clock-spring replacements elsewhere did not last."
+      "text": "The noise appears early in ownership. Owners say it began after a couple hundred miles, at about 1,200 miles, or from purchase. Another owner's vehicle had about 300 miles when the complaint was filed. A further owner first took the vehicle to the dealer for the noise at about 2,078 miles."
     },
     {
       "complaints": [
         "11769005",
-        "11744903",
-        "11745482"
+        "11744903"
       ],
-      "text": "Two owners report stiffness or binding along with the clicking. In one case the dealer said there were several complaints but no fix."
+      "text": "Two owners report stiffness or binding along with the clicking. One says the dealer acknowledged other complaints but had no fix."
     },
     {
       "complaints": [
         "11744903",
         "11745482"
       ],
-      "text": "Two complaints come from one owner: the same narrative with the same mileage and dealer history, filed twice in June 2026. They should count as one."
+      "text": "Two filings tell the same story (same trim, mileage, dealer visits and part number) and appear to be from one owner. That leaves 11 owners, not 12."
     },
     {
       "complaints": [
         "11759960"
       ],
-      "text": "One owner places the noise at the steering rack ('loose marbles') rather than the clock spring, and also reports transmission jerking. So the location of the source is not uniform."
-    },
-    {
-      "complaints": [
-        "11772274",
-        "11766069",
-        "11759960",
-        "11744903"
-      ],
-      "text": "Onset is early: about 1,200 miles, 'a couple hundred miles', about 300 miles, and 2,078 miles at the first dealer visit."
+      "text": "One complaint also raises unrelated transmission and air-conditioning problems. Its steering description (a 'loose marbles' rattle) matches the others, though that owner suspects the steering rack."
     }
   ],
-  "headline": "2026 Honda Pilot: 11 owners report the steering wheel clicking when turned, often blamed on the clock spring (cable reel). Dealer replacements are not fixing it. It looks like a noise defect, and no airbag or control failure has been reported.",
+  "headline": "2026 Honda Pilot: owners report steering-wheel clicking when turning, often traced to the clock spring, with dealer repairs that don't last",
   "open_questions": [
-    "Is there a Honda technical service bulletin or part supersession for the Pilot cable reel (part 77900-series) or the steering column noise, and does it also apply to the Prologue, CR-V and Accord, which show the same theme?",
-    "Have any affected vehicles set an SRS warning light, lost the horn or wheel controls, or had an open airbag circuit? That would turn this from a noise problem into a safety defect.",
-    "What is the root cause: the clock-spring design, the supplier lot, or interference during column assembly? Does it go back to the 2023 Pilot redesign (2023–2025 Pilot years also have active, lower-PRR signals)?",
-    "Warranty claim rates for the cable reel and column on the 2026 Pilot compared with earlier years would show how widespread the problem is, because the complaints carry no mileage field."
+    "Is the clock spring (cable reel) the confirmed source of the noise, or is it the steering rack or column? Owners and dealers give different answers.",
+    "Has any affected vehicle shown an airbag warning light, horn failure or loss of steering-wheel controls, which would show the clock spring is actually being damaged?",
+    "Is this the same steering noise reported on 2022–2025 Pilots and other current Hondas (Prologue, CR-V, Accord), pointing to a shared part?",
+    "Has Honda issued a service bulletin or revised clock-spring part, given reports that replacement parts click right away?",
+    "How common is the stiff or binding steering that two owners report alongside the noise?"
   ],
   "provenance": {
     "human_reviewed": false,
@@ -92,24 +80,24 @@
   "recalls": [
     {
       "campaign_id": "26V424000",
-      "note": "The only recall on the 2026 Pilot. It covers improperly tightened rear subframe bolts on the 2026 Pilot and Passport, which would not explain a click at the steering wheel.",
+      "note": "Covers 2026 Pilot and Passport rear subframe bolts that may have been tightened improperly. It is a rear suspension and frame issue, not steering-column noise.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     },
     {
       "campaign_id": "10V640000",
-      "note": "An older Accord/Pilot recall for loose front damper bracket bolts and spindle nuts causing noise and possible loss of steering. It is a different mechanism from the clock-spring noise reported here.",
-      "relation": "similar_problem_other_vehicle",
-      "relation_label": "Similar problem on another vehicle"
+      "note": "Recall of 2010–2011 Accord V6 and 2011 Pilot for improperly tightened front damper bracket bolts and spindle nuts. It is a different mechanism from clock-spring or column noise and is listed only as a general steering precedent.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
     },
     {
       "campaign_id": "12V548000",
-      "note": "A 2012 Civic recall for an incorrect steering column assembly. Shown only as a matched precedent.",
+      "note": "Recall of 2012 Civic for an incorrect steering column assembly. It shows a precedent for steering-column recalls but does not apply to this vehicle.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     }
   ],
-  "safety_risk": "No owner reports a crash, injury, loss of steering control, or an airbag or SRS warning. The concern is about what could follow. A clock spring that binds or wears could eventually break the circuit to the driver airbag, horn or wheel controls, which could disable the driver airbag without the driver knowing. Stiff or binding steering, reported by two owners, could also raise steering effort. None of these consequences has been documented yet.",
+  "safety_risk": "So far the reported effect is noise, and in some cases a stiff or binding wheel. No crash, injury or loss of steering control is reported. The possible concern is that the clock spring carries the electrical connection to the driver's airbag, horn and steering-wheel controls. If a binding clock spring wore through, it could disable those functions. No complaint reports that this has happened: there are no airbag warning lights, horn failures or loss of wheel controls. The reported stiffness could make low-speed steering harder.",
   "schema_version": 1,
   "signal": {
     "checked_complaints": 12,
@@ -156,7 +144,7 @@
     "towed": 0
   },
   "slug": "2026-honda-pilot-steering-wheel-clunks-or-clicks-when-turning",
-  "summary": "The signal is 12 complaints filed between June and October 2026, with PRR 131.5. It is surging, with 10 complaints in the last 3 months against 0.97 expected. All 12 complaints I read are on theme. Two of them (11744903 and 11745482) are the same owner filing the same narrative twice, so there are 11 independent owners. The symptom is very consistent: a clicking, spring-like noise from behind the steering-wheel hub when the wheel is turned, often at low speed or full lock, and it starts early in the vehicle's life (a few hundred to about 2,000 miles). For two owners, a dealer diagnosed or replaced the clock spring (cable reel assembly). Several other owners suspect the clock spring without a dealer diagnosis. Both of those owners say the dealer's clock-spring replacements failed quickly, in one case after two replacements with felt-tape wrapping. Another owner says the dealer acknowledged other complaints but had no repair. Two owners also describe stiffness or binding. No crash, fire, injury, tow, loss of steering, airbag warning light or airbag non-deployment is reported. Weakening factors: the same complaint theme is active on many Honda models without a recall, including the 2024 and 2025 Prologue, the 2021 and 2022 CR-V, the 2024 and 2025 Accord, and earlier Pilot years. One complaint (11759960) blames the steering rack rather than the clock spring. The complaints carry no mileage field. The pattern points to a real and consistent part problem, a noisy and sometimes binding clock spring that repairs don't cure. But the evidence so far shows a noise and comfort problem, not a demonstrated safety consequence. That is why I rate this a possible defect rather than a likely one.",
+  "summary": "Twelve complaints about the 2026 Pilot, received between June and October 2026, describe a clicking, ticking or rattling noise when the steering wheel is turned. Two of them are near-identical filings from the same owner, which leaves 11 separate owners. The noise starts early in ownership. Owners describe it as beginning after a couple hundred miles, at about 1,200 miles, or from purchase. Owners and dealers point most often to the clock spring (also called the cable reel), the coiled electrical connector behind the steering wheel. Two owners describe the same clock-spring repair failing again, and a third repeats what others have told them about the same thing. Two owners also report a stiff or binding wheel. None of the complaints reports a crash, injury, fire, tow, loss of steering, airbag warning or airbag failure. Ten complaints in the last three months, against about one expected, make this a sharp surge for a new model year. The same complaint also appears on 2022–2025 Pilots (3, 5, 8 and 13 complaints) and on several other current Hondas, including the Prologue, CR-V and Accord. That suggests a wider Honda steering-column noise issue rather than something new to the 2026 model. No recall covers it. The only recall for this vehicle, 26V424000, concerns rear subframe bolts and is unrelated. The pattern is consistent, but most complaints are short and describe only the noise. Whether a part is wearing or failing is not established.",
   "theme": {
     "id": 85,
     "name": "Steering wheel clunks or clicks when turning"

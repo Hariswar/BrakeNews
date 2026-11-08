@@ -1,0 +1,77 @@
+---
+// A model's page: its model years with complaints, recalls and flagged problems.
+import Crumbs from "../../../../components/Crumbs.astro";
+import Base from "../../../../layouts/Base.astro";
+import { makeName, modelName, num } from "../../../../lib/format";
+import { allModels, makeUrl, modelLabel, yearUrl, type ModelRecord } from "../../../../lib/vehicles";
+
+export async function getStaticPaths() {
+  return (await allModels()).map((m) => ({ params: { make: m.make_slug, model: m.model_slug }, props: { m } }));
+}
+
+interface Props {
+  m: ModelRecord;
+}
+const { m } = Astro.props;
+const label = modelLabel(m);
+const years = [...m.years].sort((a, b) => b.model_year - a.model_year);
+---
+
+<Base
+  title={`${label}: problems and recalls by model year | BrakeNews`}
+  description={`Owner complaints, recalls and flagged problems for each model year of the ${label}.`}
+>
+  <Crumbs items={[
+    { label: "Vehicles", href: "/vehicles/" },
+    { label: makeName(m.make), href: makeUrl(m) },
+    { label: modelName(m.model) },
+  ]} />
+  <h1>{label}</h1>
+  <p class="muted">Model years with at least 25 owner complaints to NHTSA.</p>
+
+  <table class="years-table">
+    <thead>
+      <tr>
+        <th scope="col">Model year</th>
+        <th scope="col" class="r">Complaints</th>
+        <th scope="col" class="r">Recalls</th>
+        <th scope="col">Flagged problems</th>
+      </tr>
+    </thead>
+    <tbody>
+      {years.map((y) => {
+        const flagged = y.themes.filter((t) => t.flagged);
+        return (
+          <tr>
+            <th scope="row"><a href={yearUrl(m, y.model_year)}>{y.model_year}</a></th>
+            <td class="r num">{num(y.complaints)}</td>
+            <td class="r num">{num(y.recalls.length)}</td>
+            <td class="small">{flagged.length ? `${flagged.length} flagged` : ""}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</Base>
+
+<style>
+  .years-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.45rem 0.75rem 0.45rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  thead th {
+    font-size: 0.8rem;
+    color: var(--ink-2);
+    border-bottom-color: var(--axis);
+  }
+  .r {
+    text-align: right;
+  }
+</style>

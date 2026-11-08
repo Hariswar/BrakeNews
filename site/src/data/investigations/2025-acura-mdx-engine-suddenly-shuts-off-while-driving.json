@@ -1,106 +1,94 @@
 {
   "data_through": "2026-10-01",
-  "failure_pattern": "With Auto Idle Stop engaged, the engine stops at a standstill and then fails to auto-restart when the brake is released. The vehicle shifts to Park or loses drive and asks for a manual brake-plus-start-button restart. The fault is intermittent and repeats, often several times a week. Slow or labored cranking often comes before it or happens alongside it. It starts as early as under 10,000 miles, and reported odometer readings run from under 10,000 to about 27,500. Battery replacements, starter replacements (part 31200-5MR-A03 in one case) and a software update have not reliably fixed it. Disabling idle stop avoids it, but the driver has to do that manually on every trip.",
+  "failure_pattern": "Auto Idle Stop shuts the engine off at a stop. When the brake is released, the engine fails to restart. The dash may show 'To start engine: Brake + Push', 'RESTART ENGINE', 'Idle Stop Function: Press Brake to Restart' or transmission warnings. Some owners say the vehicle shifts itself out of Drive or into Park. A manual restart often fails at first, and some owners only succeed after setting the parking brake or opening and closing the door. The failure comes back again and again on the same vehicles, often several times a week. Some owners notice slow cranking beforehand. Reported mileages run from under 10,000 to about 27,500 miles. Replacing the starter or battery has not stopped it for several owners, including one on a third starter and one with two batteries and a starter replaced.",
   "findings": [
     {
       "complaints": [
         "11773609",
         "11771386",
+        "11770899",
         "11767472",
-        "11765668",
         "11764819",
         "11763310",
         "11762658",
         "11761810",
         "11759837",
-        "11759336",
         "11758463",
         "11757065",
-        "11734545",
-        "11729911",
-        "11721896",
-        "11716573",
-        "11715662",
-        "11710340",
-        "11705169",
-        "11698742",
-        "11683513"
+        "11756817",
+        "11755686",
+        "11754284",
+        "11747083",
+        "11746622",
+        "11745473",
+        "11739504",
+        "11737684",
+        "11736850",
+        "11735584",
+        "11734545"
       ],
-      "text": "The same specific failure is reported consistently by many independent owners: no auto-restart after Auto Idle Stop at a stop, with a manual-restart message and the vehicle immobilized in traffic."
+      "text": "Many independent owners describe the same sequence: Auto Idle Stop shuts the engine off at a light or stop sign, and the engine fails to restart when the brake is released, leaving the vehicle stranded in traffic."
     },
     {
       "complaints": [
         "11772712",
-        "11771218",
         "11767195",
         "11760772",
         "11757405",
-        "11735602"
-      ],
-      "text": "Starter replacements did not fix it: the same failure came back after one or more new starters. One dealer bench test of the removed starter showed 9.7 amp draw and voltage dropping below 7.3V. One owner is on a third starter."
-    },
-    {
-      "complaints": [
-        "11762996",
         "11759336",
-        "11757405",
-        "11694662",
-        "11684351",
-        "11765668",
-        "11735372"
+        "11762996",
+        "11735602",
+        "11765668"
       ],
-      "text": "Battery replacements also failed to fix it, which points away from a simple weak battery."
+      "text": "Replacing the starter or battery does not reliably fix it. Owners report the failure returning after dealer starter replacements (two starters in one case, a third starter in another), after one or two battery replacements, and after a battery and starter were replaced together."
     },
     {
       "complaints": [
-        "11767472",
+        "11771218",
         "11763829",
         "11757152",
-        "11702666",
-        "11694662",
-        "11729911",
-        "11689185"
+        "11739107",
+        "11735372"
       ],
-      "text": "Slow or labored cranking comes before or with the failure, which fits a starter or cranking-circuit weakness."
+      "text": "One dealer diagnosed a failed starter on bench testing (9.7 A draw, voltage below 7.3 V) and replaced it. The complaint does not make clear whether the owner's later no-restart happened before or after that repair. Other owners report slow or hesitant cranking alongside the failures. This points to the starting circuit or the restart control logic."
     },
     {
       "complaints": [
-        "11760772",
+        "11747615",
+        "11738526",
+        "11738536",
         "11757151",
-        "11759336",
-        "11698742",
-        "11689185"
+        "11754100",
+        "11749541",
+        "11760772"
       ],
-      "text": "Some events end with the car going to Park or out of drive, or with transmission or limp-mode warnings, which leaves the driver stranded."
+      "text": "Manual restart is often hard: it takes several attempts, up to about 10 minutes, or tricks such as setting the parking brake or opening the door. Some owners see the vehicle shift to Park or show transmission warnings. Two of these complaints use nearly identical template wording, including the same 10-minute stranding, so they may not be fully independent reports."
     },
     {
       "complaints": [
-        "11771386",
         "11769975",
-        "11705169",
-        "11701103",
-        "11690434",
-        "11734545",
-        "11702666"
+        "11764853",
+        "11756581",
+        "11741596",
+        "11750848"
       ],
-      "text": "Owners report that dealers called it a known issue, or could not reproduce it and offered no fix."
+      "text": "Several owners say dealers told them the problem is known or seen on many vehicles of this model year. Others say dealers could not reproduce it and would not do anything."
     },
     {
       "complaints": [
-        "11684351",
-        "11690434",
-        "11735602"
+        "11749909"
       ],
-      "text": "A minority describe something else. Two report shutdowns while moving: one at 10 mph with loss of steering and brake assist, one with two shutoffs in moving traffic. One co-files unrelated lane-keep and steering-switch faults. These may be a different issue."
+      "text": "One owner reports a stall at a stop after highway driving even though a recall software update had been done. It is not stated which recall."
     }
   ],
-  "headline": "2025 Acura MDX: engine often fails to restart after Auto Idle Stop, leaving the vehicle stranded in traffic. Repeat starter and battery replacements have not fixed it, and no recall covers it.",
+  "headline": "2025 Acura MDX: engine often fails to restart after Auto Idle Stop shuts it off, leaving the vehicle stuck in traffic; no recall covers it",
   "open_questions": [
-    "Is the root cause the starter motor, the starter relay or cranking circuit, idle-stop control logic, or battery state-of-charge management? Repeat starter and battery replacements have not fully fixed it.",
-    "Does NHTSA EA25004, which one owner cites, cover the 2025 MDX? Is the same failure behind the surging signals on the 2024, 2025 and 2026 Honda Odyssey and the 2025 Ridgeline, which likely share the idle-stop and starter hardware?",
-    "Has Honda issued a TSB, starter part supersession or software update for idle-stop restart failure on the 2025 MDX?",
-    "Are the few reports of shutdown while moving (e.g. 11684351, 11690434) the same mechanism or a separate stall issue?",
-    "Mileage is missing from the structured data. Odometer readings stated in the narratives run from under 10,000 to about 27,500 miles."
+    "Is the root cause the starter, the 12V battery and charging control, or the idle-stop restart software in the powertrain control module, given that starter and battery replacements have not fixed it for several owners?",
+    "Owners cite an NHTSA engineering analysis (EA25-004) of Auto Idle Stop no-restart on Honda and Acura vehicles. Does it include the 2025 MDX, and will any remedy cover this model year?",
+    "Do the active complaints on the 2020 and 2016 MDX describe the same idle-stop no-restart, or fuel-pump stalls covered by 23V858000?",
+    "Do the 2024–2026 Odyssey and 2025 Ridgeline surges on this theme share the same failure and parts as the 2025 MDX?",
+    "Can Auto Idle Stop be disabled on every 2025 MDX? One owner reports it cannot be turned off.",
+    "What share of affected vehicles are Type S models, and has the 25V031000 software update changed how often the failure occurs on them?"
   ],
   "provenance": {
     "human_reviewed": false,
@@ -118,36 +106,36 @@
   "recalls": [
     {
       "campaign_id": "25V031000",
-      "note": "FI-ECU software error causing engine stall or loss of power on 2022–2025 MDX Type S, 2023–2025 Pilot and 2021–2025 TLX Type S. It covers only Type S MDX, and the defect is a software stall rather than a failed restart after idle stop, so it does not cover this pattern.",
+      "note": "A fuel-injection ECU software error causing engine stall or loss of power. It covers only the 2022–2025 MDX Type S (plus the Pilot and TLX Type S). It does not cover the Auto Idle Stop restart failure on the standard 2025 MDX.",
       "relation": "similar_problem_other_vehicle",
       "relation_label": "Similar problem on another vehicle"
     },
     {
       "campaign_id": "23V858000",
-      "note": "Honda/Acura fuel pump recall for model years through 2023, which covers earlier MDX years. It is a different defect and does not include the 2025 MDX.",
+      "note": "Fuel pump failure on many Honda and Acura models, including the MDX up to model year 2023, which covers most of the older MDX years with complaints on this theme. It does not include the 2025 MDX and describes a different part.",
       "relation": "similar_problem_other_vehicle",
       "relation_label": "Similar problem on another vehicle"
     },
     {
+      "campaign_id": "26V332000",
+      "note": "Front passenger seat weight sensor (air bag occupant classification).",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
       "campaign_id": "25V391000",
-      "note": "Brake pedal pivot pin on the 2023–2025 MDX.",
+      "note": "Brake pedal pivot pin not properly secured.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     },
     {
       "campaign_id": "25V032000",
-      "note": "Center touchscreen goes blank and the rearview camera image does not display on the 2025 MDX.",
-      "relation": "unrelated",
-      "relation_label": "Looked at, unrelated"
-    },
-    {
-      "campaign_id": "26V332000",
-      "note": "Front passenger seat weight sensor (occupant classification for the airbag).",
+      "note": "Center touchscreen may go blank, so the rearview camera image does not display.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     }
   ],
-  "safety_risk": "Sudden loss of propulsion while stopped in active traffic: at intersections, while turning across traffic, on highway off-ramps and in highway congestion. The vehicle cannot pull out of the way and is at risk of being rear-ended. One owner raises the risk of a stall on railroad tracks. One owner reports losing steering and brake assist. Several report near-misses. No crashes or injuries have been reported so far.",
+  "safety_risk": "The vehicle is left without power in an active traffic lane or intersection, often at the moment the light turns green. That creates a risk of being rear-ended or hit by cross traffic. Owners describe being stuck for up to about 10 minutes, one calling police for help with an infant on board and one at an expressway off-ramp. No crashes or injuries have been reported so far. Some owners say they avoid the failure by switching Auto Idle Stop off every time they start the vehicle. One owner says there is no way to turn the system off.",
   "schema_version": 1,
   "signal": {
     "checked_complaints": 72,
@@ -238,7 +226,7 @@
     "towed": 0
   },
   "slug": "2025-acura-mdx-engine-suddenly-shuts-off-while-driving",
-  "summary": "The signal is real and specific. Of 72 complaints, 61 were judged on-theme. Peak PRR is 29.5, the signal is active, and complaints are surging (30 in the last three months against 17.6 expected). This puts the vehicle 4th of 37,834 vehicle/theme pairs for recall risk. I read 50 of the 72 narratives. Nearly all describe the same failure. The engine shuts off normally under Auto Idle Stop at a light, stop sign, drive-thru or highway off-ramp. When the driver releases the brake, the engine does not restart. Often the transmission drops to Park and the dash shows 'depress brake pedal and push switch' or 'RESTART ENGINE'. Restarting usually takes several manual attempts, sometimes a door open/close or a wait of a minute or more. Many owners also report slow or labored cranking. Dealers commonly replaced the battery and/or starter, several owners more than once, but the failure came back. One dealer bench-tested a failed starter. Several owners say their dealer called it a 'known issue'. No crashes, fires, injuries or tows are reported. The hazard is a sudden loss of propulsion in live traffic, with several near rear-end collisions described. None of the three recalls on the 2025 MDX covers this. Similar surging signals on the 2024, 2025 and 2026 Honda Odyssey and the 2025 Ridgeline suggest a shared Honda idle-stop restart or starter issue. One owner cites an NHTSA Engineering Analysis, EA25004, on no-restart after auto start/stop for 2016–2025 MDX. I have not verified this with a tool.",
+  "summary": "There are 72 complaints about the 2025 MDX for this theme, received from August 2025 to October 2026. Half of them (36) came in July–October 2026, including 14 in August 2026 alone. The complaints describe nearly the same failure every time. At a red light or stop sign, Auto Idle Stop shuts the engine off as designed. When the driver releases the brake, the engine does not restart, and the vehicle is stuck in a live traffic lane until the driver shifts to Park and restarts it by hand. That manual restart sometimes takes several tries or up to about 10 minutes. Few of these complaints describe a true stall while moving: the problem is a failure to restart from an idle stop. The owners are independent and spread across many dealers. Several report that dealers replaced the starter, the battery or both and the problem came back, which points to a cause beyond a single bad part. Other MDX model years also have complaints on this theme: 45 for 2020 (21 recent, signal active), 24 for 2016 (9 recent, active), 19 for 2019 and 8 each for 2007 and 2017. The 2025 count and its peak PRR of 29.5 are the highest of any model year. Most of the older years fall under fuel-pump recall 23V858000. What failure their owners describe has not been checked here, and owners of the 2025 model say the federal investigation covers the 2016–2025 MDX. The same theme is also surging on the 2024–2026 Honda Odyssey and the 2025 Honda Ridgeline, which suggests a problem in a system Honda uses across several models. No crashes, injuries or fires have been reported. None of the three recalls on the 2025 MDX covers this problem.",
   "theme": {
     "id": 70,
     "name": "Engine suddenly shuts off while driving"

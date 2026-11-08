@@ -1,0 +1,75 @@
+---
+// A few values on one scale, as horizontal bars with the value at each bar's tip. One series,
+// so no legend: the caption says what is compared. The values are printed, so nothing hides
+// behind hover.
+interface Props {
+  caption: string;
+  rows: { label: string; value: number; text: string }[];
+}
+const { caption, rows } = Astro.props;
+const max = Math.max(...rows.map((r) => r.value), 1e-9);
+---
+
+<figure class="compare">
+  <figcaption class="small muted">{caption}</figcaption>
+  <dl>
+    {rows.map((r) => (
+      <div class="row">
+        <dt class="small">{r.label}</dt>
+        <dd>
+          <span class="bar" style={`width:${Math.max((r.value / max) * 100, 0.5)}%`} />
+          <span class="val num small">{r.text}</span>
+        </dd>
+      </div>
+    ))}
+  </dl>
+</figure>
+
+<style>
+  .compare {
+    margin: 1rem 0 1.5rem;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+  }
+  dl {
+    margin: 0.75rem 0 0;
+    display: grid;
+    gap: 0.6rem;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: minmax(8rem, 14rem) 1fr;
+    gap: 0.75rem;
+    align-items: center;
+  }
+  dt {
+    color: var(--ink-2);
+    line-height: 1.3;
+  }
+  dd {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+  .bar {
+    display: block;
+    height: 16px;
+    max-width: calc(100% - 4.5rem);
+    background: var(--series);
+    border-radius: 0 4px 4px 0;
+  }
+  .val {
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  @media (max-width: 30rem) {
+    .row {
+      grid-template-columns: 1fr;
+      gap: 0.2rem;
+    }
+  }
+</style>

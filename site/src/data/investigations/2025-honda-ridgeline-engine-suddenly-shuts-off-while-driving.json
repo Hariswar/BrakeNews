@@ -1,11 +1,13 @@
 {
   "data_through": "2026-10-01",
-  "failure_pattern": "The engine is stopped by Auto Idle Stop at a light, in stop-and-go traffic, or while waiting to turn left. On brake release it does not restart, or it cranks slowly, lurches and dies. Warning messages come on: an Auto Engine Stop System Problem light, battery or power-steering lights, or a prompt to shift to Park. The driver has to shift to Park and restart manually, sometimes after several tries or a wait. Owners say it began after about 10,000 miles or about a year of use. Reported triggers include long highway drives, the stop right after refuelling, and heavy electrical load (one owner got it to restart by switching off the A/C and radio). It is intermittent and often leaves no fault codes. Battery replacement did not fix it; one starter replacement was reported.",
+  "failure_pattern": "With AIS on, the engine shuts off as designed at a stop. When the driver releases the brake, the engine does not restart, or cranks slowly, lurches and dies. Warning messages appear, including an 'Auto Engine Stop System Problem' message, battery and power-steering lights, and an instruction to put the truck in Park. The driver has to shift to Park and restart by hand, sometimes with repeated attempts. The failure is intermittent and happens again and again on the same truck. One owner says the truck starts normally from fully off, and several say that turning AIS off avoids the problem. Owners note weak or slow cranking. Two owners report the failure after a long highway drive or right after refueling. Reported mileages range from about 10,000 to 24,000 miles.",
   "findings": [
     {
       "complaints": [
+        "11772614",
         "11772458",
         "11771714",
+        "11771258",
         "11769046",
         "11768385",
         "11763839",
@@ -15,71 +17,79 @@
         "11754660",
         "11749576",
         "11749191",
-        "11733733",
-        "11731145",
-        "11693577"
-      ],
-      "text": "Many independent owners describe the same failure: AIS stops the engine at a stop, it does not restart on brake release, and a manual shift to Park and restart is needed, often in intersections or traffic lanes."
-    },
-    {
-      "complaints": [
-        "11771258",
-        "11765880",
         "11748746",
-        "11737930",
-        "11746258"
+        "11746258",
+        "11733733",
+        "11765976"
       ],
-      "text": "Owners report slow cranking, struggling restarts or battery warnings during AIS restarts. This points to the starting and charging system under repeated AIS cycles."
-    },
-    {
-      "complaints": [
-        "11753947"
-      ],
-      "text": "One dealer found a starter drawing excessive current that caused hard starts and AIS restart failure, and replaced it under warranty. That truck had been stranded in an intersection with police blocking traffic and was towed, although the complaint's tow flag is not set."
+      "text": "Many independent owners describe the same thing: the engine fails to restart after an Auto Idle Stop shutdown at a light or intersection, and the truck has to be put in Park and restarted by hand."
     },
     {
       "complaints": [
         "11772614",
-        "11731145",
+        "11771258",
         "11765880",
+        "11753947",
+        "11740897",
+        "11737930",
+        "11733175",
+        "11731145",
+        "11693577",
+        "11768385"
+      ],
+      "text": "Owners describe slow or labored cranking, lurching, or no restart until after several tries or 30 seconds to 15 minutes. Battery, power-steering and AIS warning lights are reported. These details point to the restart and electrical path."
+    },
+    {
+      "complaints": [
+        "11753947",
+        "11772614",
+        "11765880",
+        "11731145",
         "11749191",
         "11748746",
         "11740897",
-        "11769046"
+        "11769046",
+        "11771714"
       ],
-      "text": "Battery or throttle-body replacements did not fix the problem. Several dealers found nothing wrong and told owners to switch AIS off by hand every trip."
+      "text": "Dealer repairs have not reliably fixed it. One dealer found a starter drawing excessive current and replaced it. Others replaced the battery or throttle body, and the problem came back. Other dealers found no fault and advised turning AIS off on every drive."
     },
     {
       "complaints": [
-        "11765801",
+        "11733175",
+        "11771714",
+        "11771258"
+      ],
+      "text": "One owner says the truck starts normally from fully off and the problem happens only at idle stops. Other owners say the failure happens when they forget to turn AIS off, which implies that turning it off avoids the problem. This ties the failure to idle-stop restarts specifically."
+    },
+    {
+      "complaints": [
         "11755798",
-        "11765880"
+        "11765801"
       ],
-      "text": "Owners describe specific triggers: after about an hour of highway driving, right after refuelling, and under electrical load (one restart only worked after the A/C and electronics were switched off)."
+      "text": "Two owners describe conditions that seem to trigger it: right after refueling, and the first stop after about an hour of highway driving."
     },
     {
       "complaints": [
-        "11754845",
+        "11754845"
+      ],
+      "text": "One complaint describes the engine shutting off while driving, with no power and a hard brake pedal, leaving the truck stranded in the fast lane. It is the only complaint describing a stall while moving."
+    },
+    {
+      "complaints": [
         "11731542",
         "11713532",
-        "11765976"
+        "11740897"
       ],
-      "text": "Some complaints are weak or off-pattern. One describes the car shutting off while driving with a hard brake pedal. One describes the truck 'going into neutral' at stops. One reads like a summary of news reports rather than a first-hand account. One is too vague to judge."
-    },
-    {
-      "complaints": [
-        "11733175"
-      ],
-      "text": "One owner says the engine starts normally from key-off and the failure happens only on AIS restarts. This separates the problem from a general no-start or engine-stall problem."
+      "text": "One owner describes a different symptom: the truck goes into neutral at stops. Another complaint is a general summary of AIS problems rather than a specific personal incident. One owner says this was their third occurrence and that they filed an earlier report, so a few complaints may come from the same owner."
     }
   ],
-  "headline": "2025 Honda Ridgeline: the Auto Idle Stop system often fails to restart the engine at stops, leaving trucks stuck in traffic lanes and intersections. No recall covers it.",
+  "headline": "2025 Honda Ridgeline: Auto Idle Stop repeatedly fails to restart the engine at stops, stranding trucks in traffic",
   "open_questions": [
-    "What is the root cause: a starter wearing out from AIS cycling (as one dealer found), battery or charging management (the battery sensor or the logic that decides when AIS may stop the engine), or the AIS restart software? Has Honda issued a service bulletin or software update for AIS restart failures on the J35-engine trucks, minivans and SUVs?",
-    "Do the much larger signals on the 2025 Odyssey (260 complaints, PRR 28.5), 2025 Acura MDX (72, PRR 29.0), 2024 and 2026 Odyssey, and the 2022–2024 Ridgeline describe the same AIS restart failure? I did not read those complaints. If they do, an investigation should cover the shared platform rather than the 2025 Ridgeline alone.",
-    "Mileage is missing from all of these complaints. The few owners who mention it describe onset at about 10,000–24,000 miles or about a year of use. This should be confirmed with warranty data on starters and batteries.",
-    "How many trucks have had starters replaced under warranty, and did the replacement fix the problem?",
-    "Is complaint 11754845 (shut off while driving, hard brake pedal) the same failure, or a separate loss-of-power event?"
+    "Which part causes the failure: the starter motor, the 12V battery and charging system, or the AIS control software? One dealer found a starter drawing excessive current, while others found no fault.",
+    "Do the stall-theme complaints on the 2022–2024 Ridgeline, the 2024–2026 Odyssey and the 2025 MDX describe the same idle-stop restart failure, or different stall problems?",
+    "Has Honda issued any technical service bulletin or software update for AIS restart failures on the 2025 Ridgeline?",
+    "Is the one report of the engine dying while moving (with a hard brake pedal) linked to the idle-stop problem, or is it a separate fault?",
+    "How many complaints are repeat filings by the same owners?"
   ],
   "provenance": {
     "human_reviewed": false,
@@ -97,36 +107,36 @@
   "recalls": [
     {
       "campaign_id": "23V858000",
-      "note": "Fuel pump failure that can cause engine stalls. Covers 2017–2020 Ridgelines and many other Hondas, but not the 2025 model year. The failure is also different: these complaints describe AIS restart failures, not stalls from fuel starvation.",
-      "relation": "similar_problem_other_vehicle",
-      "relation_label": "Similar problem on another vehicle"
+      "note": "Fuel pump failure recall covering 2017–2020 Ridgeline and many other Hondas. It does not cover the 2025 model year, and its failure is different from the idle-stop restart failure described here.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
     },
     {
       "campaign_id": "25V031000",
-      "note": "FI-ECU software error causing engine stall or loss of power on 2023–2025 Pilot, MDX Type S and TLX Type S. Shows that Honda has fixed engine-stall problems by software before. It does not cover the Ridgeline and does not address AIS restarts.",
+      "note": "FI-ECU software error causing engine stall or loss of power on 2023–2025 Pilot, MDX Type S and TLX Type S. A similar Honda stall theme. It does not include the Ridgeline and does not involve idle-stop restarts.",
       "relation": "similar_problem_other_vehicle",
       "relation_label": "Similar problem on another vehicle"
     },
     {
       "campaign_id": "25V785000",
-      "note": "Accord Hybrid control-module CPU reset causing loss of drive power. A different powertrain and a different failure.",
+      "note": "Accord Hybrid control-module software reset causing loss of drive power. A Honda loss-of-power precedent on a different vehicle and system.",
       "relation": "similar_problem_other_vehicle",
       "relation_label": "Similar problem on another vehicle"
     },
     {
       "campaign_id": "26V332000",
-      "note": "Front passenger seat weight sensor (occupant classification) recall that includes the 2025 Ridgeline. Unrelated.",
+      "note": "Front passenger seat weight sensor (occupant classification) recall that includes the 2025 Ridgeline. It has nothing to do with engine restart.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     },
     {
       "campaign_id": "24V321000",
-      "note": "Rearview camera tailgate harness on 2020–2024 Ridgeline. Unrelated, and does not include the 2025 model year.",
+      "note": "Rearview camera tailgate harness recall for 2020–2024 Ridgeline.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     }
   ],
-  "safety_risk": "The truck becomes unexpectedly unable to move in an active traffic lane, intersection, highway queue or turn lane, while surrounding drivers expect it to pull away. That creates a risk of rear-end and side-impact collisions. Several owners report near misses, and one truck was blocked in an intersection until police and a tow arrived. With the engine off, steering and brake assist are reduced, but the truck is stopped when this happens, so loss of control at speed is not the main concern. Owners can avoid the problem by switching AIS off, but they have to do it every trip, and the complaints show that many forget. No crashes, fires or injuries have been reported so far.",
+  "safety_risk": "The truck becomes disabled in active traffic. Owners describe being stuck in intersections while waiting to turn left, at freeway ramp ends, and in multi-lane stop-and-go traffic, with other cars swerving around them and a risk of being hit from behind. In one case police blocked traffic until a tow arrived. One complaint describes a full loss of power while moving, with a hard brake pedal, in the fast lane. No crashes or injuries are reported.",
   "schema_version": 1,
   "signal": {
     "checked_complaints": 29,
@@ -193,7 +203,7 @@
     "towed": 0
   },
   "slug": "2025-honda-ridgeline-engine-suddenly-shuts-off-while-driving",
-  "summary": "I read all 29 complaints in the window. About 25 of them clearly describe the same failure. The Auto Idle Stop (AIS) system shuts the engine off as designed at a light or in stop-and-go traffic. When the driver lifts off the brake, the engine does not restart. The truck sits in the lane or intersection until the driver shifts to Park and restarts it with the button, which sometimes takes several tries or 15 seconds to a minute. Four complaints are weak or off-pattern: 11754845, 11731542, 11713532 and 11765976. The dossier's automatic check counted 22 on-theme, 5 off-theme and 2 unclear. One owner says the engine starts normally from a full key-off and the problem only shows up on AIS restarts. Dealers often could not reproduce it. Battery replacements did not fix it. One dealer found a starter drawing too much current and replaced it under warranty. Several owners describe slow or weak cranking. That points to the starter, battery or charging side under repeated AIS restarts, or to the AIS restart logic, rather than to engine stalls while moving. The dossier labels the theme 'engine shuts off while driving', but that is not what these owners describe: the engine is shut off on purpose and then fails to restart. No crashes or injuries were reported. Several owners describe near rear-end collisions, and one truck was stranded in an intersection until police and a tow truck came. The same problem shows up on other Honda models. In this model, the 2024 Ridgeline is also signalling and surging (12 complaints, PRR 8.6). The 2022 Ridgeline (PRR 6.3) and 2023 Ridgeline (PRR 3.6) are signalling but not surging. The 2020 Ridgeline is also signalling and is covered by the fuel-pump recall 23V858000. Across all makes, the 2025 Odyssey (260 complaints, PRR 28.5), 2025 Acura MDX (72, PRR 29.0) and 2024 and 2026 Odyssey are all signalling and surging. I did not read those complaints, so I cannot confirm they describe the same AIS failure. If they do, it could be a shared issue across Honda's V6 vehicles. The only recall for this theme that touches the Ridgeline, 23V858000 (fuel pump failure), covers 2017–2020 Ridgelines and is a different failure. Neither of the 2025 Ridgeline's own recalls covers this problem.",
+  "summary": "There are 29 complaints about the 2025 Ridgeline in this group, filed between October 2025 and October 2026. Almost all of them describe the same failure. The Auto Idle Stop (AIS) system shuts the engine off as designed when the truck stops at a light or turn lane. When the driver lifts off the brake, the engine does not start again. Owners say they then have to shift to Park and restart the truck by hand, sometimes needing several tries or up to a minute or more. In one case it took about 15 minutes and the truck was towed. Owners describe this as random and repeated, and many say it happened several times. One owner reports that the truck starts normally from fully off, and several report that turning AIS off avoids the failure. Dealers often found nothing. Fixes reported include battery replacements, one throttle body and one starter replaced, and at least one owner says the fault came back after a dealer repair. Only one complaint describes the engine dying while the truck was moving. So the label 'shuts off while driving' mostly describes a failure to restart at a stop, not a stall at speed. Complaints are rising: 16 in the last three months against about 4.8 expected. Other vehicles also have active signals for this engine-stall theme, with no covering recall. The 2024 Ridgeline signal is surging, and the 2022 and 2023 Ridgeline signals are active but not surging. The 2024–2026 Odyssey and 2025 MDX also have surging signals. Whether those complaints describe the same idle-stop restart failure is not established. There are no crashes, fires or injuries. The exact failing part is not established. The evidence points to the restart path (starter or battery/charging) or the AIS control logic.",
   "theme": {
     "id": 70,
     "name": "Engine suddenly shuts off while driving"

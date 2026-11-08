@@ -1,0 +1,108 @@
+---
+// Make -> model -> year, filled from /vehicles/index.json. Without JavaScript the browse link
+// still gets a reader to every vehicle.
+---
+
+<form class="picker" data-picker action="/vehicles/" aria-label="Find a vehicle">
+  <label>
+    <span class="small">Make</span>
+    <select name="make" disabled required><option value="">Loading…</option></select>
+  </label>
+  <label>
+    <span class="small">Model</span>
+    <select name="model" disabled required><option value="">Choose a make</option></select>
+  </label>
+  <label>
+    <span class="small">Year</span>
+    <select name="year" disabled required><option value="">Choose a model</option></select>
+  </label>
+  <button type="submit" disabled>Show</button>
+  <noscript><p class="small">Browse <a href="/vehicles/">all makes</a>.</p></noscript>
+</form>
+
+<script>
+  type Index = [string, string, [string, string, number[]][]][];
+
+  function fill(select: HTMLSelectElement, prompt: string, options: [string, string][]) {
+    select.replaceChildren(new Option(prompt, ""), ...options.map(([label, value]) => new Option(label, value)));
+    select.disabled = options.length === 0;
+  }
+
+  for (const form of document.querySelectorAll<HTMLFormElement>("[data-picker]")) {
+    const [make, model, year] = ["make", "model", "year"].map(
+      (n) => form.elements.namedItem(n) as HTMLSelectElement,
+    );
+    const button = form.querySelector("button")!;
+    let index: Index = [];
+    const models = () => index.find((m) => m[1] === make.value)?.[2] ?? [];
+    const update = () => {
+      button.disabled = !year.value;
+    };
+
+    fetch("/vehicles/index.json")
+      .then((r) => r.json())
+      .then((data: Index) => {
+        index = data;
+        fill(make, "Choose…", index.map(([label, slug]) => [label, slug]));
+      })
+      .catch(() => fill(make, "Could not load vehicles", []));
+
+    make.addEventListener("change", () => {
+      fill(model, "Choose…", models().map(([label, slug]) => [label, slug]));
+      fill(year, "Choose a model", []);
+      update();
+    });
+    model.addEventListener("change", () => {
+      const years = models().find((m) => m[1] === model.value)?.[2] ?? [];
+      fill(year, "Choose…", years.map((y) => [String(y), String(y)]));
+      update();
+    });
+    year.addEventListener("change", update);
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (year.value) location.href = `/vehicles/${make.value}/${model.value}/${year.value}/`;
+    });
+  }
+</script>
+
+<style>
+  .picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    align-items: flex-end;
+    padding: 1rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    margin: 1rem 0;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1 1 9rem;
+    color: var(--ink-2);
+  }
+  select,
+  button {
+    font: inherit;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid var(--axis);
+    border-radius: 6px;
+    background: var(--page);
+    color: var(--ink);
+  }
+  button {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    padding: 0.4rem 1.1rem;
+    cursor: pointer;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+</style>

@@ -1,41 +1,26 @@
 {
   "data_through": "2026-10-01",
-  "failure_pattern": "The interior door handle sub-assembly breaks internally under ordinary opening force. The failed part is a plastic link or housing where the release cable attaches to the handle, a pivot pin or bell-crank, or the return-spring retainers. The handle then hangs loose and no longer pulls the latch cable. The door can still be opened with the exterior handle once the window is lowered. Failures come without warning, mostly on the driver's door but also on the front passenger and rear doors, between roughly 3,400 and 13,000 miles and within about the first year of ownership. Owners report failures on a second door, and replacement or swapped handles failing again. Two complaints say the door could not be opened from outside either (11757331 says the inside and outside handles both stopped working; 11759280 says the door would open neither way). These may involve the latch rather than the handle and are exceptions.",
+  "failure_pattern": "The interior door handle sub-assembly fails without warning during normal opening. An internal plastic part breaks, the cable comes loose at the handle, or the return springs come off their retainers. The handle then hangs loose and no longer releases the latch, while the exterior handle usually still works. The driver's door is the one most often reported, with front passenger and rear doors also involved. Failures occur at low mileage, often within the first year of ownership. Repairs are delayed by parts backorders, and some owners report repeat failures or failures on several doors of the same truck.",
   "findings": [
     {
       "complaints": [
-        "11773218",
-        "11772388",
-        "11771326",
-        "11770160",
-        "11767788",
-        "11763948",
-        "11763988",
-        "11761503",
-        "11746885",
-        "11744724",
-        "11740765",
-        "11733188",
         "11692976",
-        "11769321",
-        "11765632",
-        "11761075",
-        "11760254"
-      ],
-      "text": "Many independent owners describe the same failure: the interior handle breaks internally under normal use, goes loose, and the door cannot be opened from inside. Exiting requires lowering the window and using the exterior handle, or climbing across the cab."
-    },
-    {
-      "complaints": [
         "11761560",
         "11761814",
         "11752358",
         "11745636",
-        "11692976",
-        "11747995",
+        "11757037",
+        "11767229",
         "11771154",
-        "11767229"
+        "11760254"
       ],
-      "text": "Owners' descriptions, some citing dealer findings, point to the same parts. They describe a fractured plastic hinge pin or bell-crank (11761560), a broken plastic piece or connection where the cable attaches to the handle (11761814, 11752358, 11745636, 11692976), and a broken cable (11771154, 11767229). One owner quotes a dealer repair order: internal return springs disengaged from their retention points, which the dealer attributed to retainer design and material fatigue (11747995)."
+      "text": "Owners describe a specific internal part of the interior handle breaking during normal use: a plastic piece or housing where the release cable attaches, a hinge pin or bell-crank, or the cable at the handle."
+    },
+    {
+      "complaints": [
+        "11747995"
+      ],
+      "text": "One dealer repair order states that the right-rear inner handle's internal return springs had come off their retention points, and cites insufficient spring retention and improper factory fitment."
     },
     {
       "complaints": [
@@ -43,9 +28,8 @@
         "11750131",
         "11763181",
         "11757966",
-        "11733188",
-        "11692976",
         "11771458",
+        "11733188",
         "11747995",
         "11745636",
         "11740765",
@@ -53,50 +37,53 @@
         "11772388",
         "11771822"
       ],
-      "text": "Failures happen at low mileage: about 3,429, 4,476, 4,700, 6,000, 6,300, 7,000, 7,055, 8,038, 8,800, 9,300, 10,000, about 11,000 and 13,000 miles. The dossier median is 6,000 miles."
+      "text": "Where mileage is reported, failures happen at low mileage, from about 3,429 to 13,000 miles."
+    },
+    {
+      "complaints": [
+        "11764169",
+        "11753584",
+        "11753474",
+        "11752124",
+        "11772388",
+        "11746592",
+        "11742223",
+        "11773218",
+        "11772319",
+        "11756582"
+      ],
+      "text": "Many owners say a Toyota dealer confirmed the failed handle assembly and told them replacement parts are on national backorder, in some cases with no estimated arrival date or an arrival months away."
     },
     {
       "complaints": [
         "11761814",
+        "11754110",
         "11745636",
         "11749659",
         "11728582",
-        "11754110",
         "11772799"
       ],
-      "text": "The failure repeats on the same vehicle. Owners report a second door failing, a swapped handle breaking again, or a handle failing again right after repair."
+      "text": "Some trucks have had the failure repeat or spread to several doors. In one case a swapped-in handle broke again, and in another the handle failed again right after repair. One owner had both front doors fail, another had the driver and passenger handles break, and another had failures on the front and rear doors on the driver's side. A further owner reports that the interior handles keep breaking at random."
     },
     {
       "complaints": [
+        "11769590",
+        "11757037",
+        "11747995",
+        "11728582",
         "11757314",
         "11752358",
-        "11742223",
-        "11747995",
-        "11757037",
-        "11769590",
-        "11728582"
+        "11742223"
       ],
-      "text": "Front passenger and rear door handles fail the same way, so the problem is not limited to one door."
+      "text": "The failure affects rear and front passenger doors as well as the driver's door."
     },
     {
       "complaints": [
-        "11753584",
-        "11764169",
-        "11756582",
-        "11752124",
-        "11746592",
-        "11749659",
-        "11772319",
-        "11762035",
-        "11750131"
+        "11771763",
+        "11770160",
+        "11761503"
       ],
-      "text": "Owners say dealers reported national backorders of the replacement assembly, one citing 1,600 units, and called the failure a known or common issue. One dealer provided a rental, citing safety. In one more case, an owner says the dealer had a second Tacoma with the same handle failure (11750131)."
-    },
-    {
-      "complaints": [
-        "11771763"
-      ],
-      "text": "Entrapment has already happened in practice: a disabled owner could not get out and needed someone to open the door from outside."
+      "text": "Owners report being trapped, including one with a disability who could not reach the outside handle and had to call for help in a parking lot."
     },
     {
       "complaints": [
@@ -104,16 +91,15 @@
         "11757331",
         "11759280"
       ],
-      "text": "Off-pattern or weaker complaints: one describes a smart-key or auto-lock fault and is unrelated (11725346). Two report the door would not open from outside either, which may be a latch fault rather than the handle (11757331, 11759280)."
+      "text": "A few complaints describe other problems: one reports smart-key and door-lock electrical faults rather than a broken handle, and two report that the outside handle also stopped working."
     }
   ],
-  "headline": "2025 Toyota Tacoma: interior door handle assemblies break in normal use at low mileage, so occupants cannot open the door from inside. Replacement parts are reported on national backorder and no recall covers the problem.",
+  "headline": "2025 Toyota Tacoma: interior door handles break in normal use, so the door can't be opened from inside. Owners report national parts backorders and no recall.",
   "open_questions": [
-    "Does the problem extend beyond the 2025 model year? The 2024 Tacoma has 4 complaints and is surging but has no PRR signal yet; the 2026 has 1 complaint. Does the same inner handle part number go on those years? Some owners also mention the 4Runner and Tundra, which has not been checked.",
-    "Are there Toyota warranty claim counts or a technical service bulletin for this assembly, and has a revised part been released? Owners report replacement handles failing again.",
-    "How many vehicles are waiting on backordered parts, and is Toyota offering any interim fix?",
-    "Does losing the interior release on a front door raise a compliance question under FMVSS 206 requirements for door locks and door retention components, or is this a safety-defect question only?",
-    "Are 11757331 and 11759280, which report that the door could not be opened from outside either, a separate latch failure?"
+    "Which internal part of the handle assembly fails first: the plastic cable attachment or bell-crank, the cable, or the return springs? Is it one part or several?",
+    "Does the replacement part supplied under warranty use a revised design, given the reports of repeat failures after repair?",
+    "How many 2024 and 2026 Tacomas, and other vehicles that may share the handle design, are affected? Some owners mention the 4Runner and Tundra.",
+    "Are the few reports of the outside handle also failing caused by the same part, or by a separate latch problem?"
   ],
   "provenance": {
     "human_reviewed": false,
@@ -131,48 +117,42 @@
   "recalls": [
     {
       "campaign_id": "26V514000",
-      "note": "Shock absorber flange corrosion on 2024-2025 Tacoma.",
-      "relation": "unrelated",
-      "relation_label": "Looked at, unrelated"
-    },
-    {
-      "campaign_id": "26V179000",
-      "note": "Load capacity label error.",
+      "note": "2024-2025 Tacoma recall for corroded shock absorber flanges; it does not involve door handles.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     },
     {
       "campaign_id": "25V656000",
-      "note": "Front driveshaft CV joint.",
-      "relation": "unrelated",
-      "relation_label": "Looked at, unrelated"
-    },
-    {
-      "campaign_id": "25V595000",
-      "note": "Instrument panel software.",
+      "note": "2025 Tacoma recall for the front driveshaft CV joint.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     },
     {
       "campaign_id": "25V058000",
-      "note": "Rear brake hose damage.",
+      "note": "2024-2025 Tacoma 4WD recall for rear brake hose damage.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     },
     {
-      "campaign_id": "26V134000",
-      "note": "2026 Mercedes GLA 250: an incorrectly installed Bowden cable can stop the door opening from inside. This is the same hazard, recalled even though only 10 vehicles were affected.",
-      "relation": "similar_problem_other_vehicle",
-      "relation_label": "Similar problem on another vehicle"
+      "campaign_id": "25V595000",
+      "note": "Multi-model Toyota recall for instrument panel software.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
+    },
+    {
+      "campaign_id": "26V179000",
+      "note": "Multi-model Toyota recall for incorrect load capacity labels.",
+      "relation": "unrelated",
+      "relation_label": "Looked at, unrelated"
     },
     {
       "campaign_id": "26V049000",
-      "note": "Toyota Prius rear door switch short circuit lets the door open unexpectedly. Different failure mode.",
+      "note": "Prius recall in which water in the rear door switch can let a door open unexpectedly. It is a different part and the opposite failure.",
       "relation": "unrelated",
       "relation_label": "Looked at, unrelated"
     }
   ],
-  "safety_risk": "Occupants can be trapped. The way out through the affected door is to lower the window and reach the exterior handle, which needs electrical power for the window and the physical ability to reach outside. After a crash, fire, submersion or loss of power, an occupant could be delayed or unable to get out. Children in rear seats are especially at risk, and so are occupants with limited mobility: one disabled owner had to call for help to get out (11771763). Parts backorders leave affected trucks in service with the defect for weeks to months. No crashes, fires, injuries or deaths have been reported so far.",
+  "safety_risk": "Occupants cannot open the affected door from inside. To get out, they must lower the window and use the exterior handle, which needs power to the window and enough reach and mobility, or climb out through another door. Rear-seat passengers, children and people with disabilities may not be able to get out on their own. One owner with a disability had to call for help to get out of the truck. After a crash, a fire, a loss of power or a water entry, this could delay escape or rescue. Because of parts backorders, owners report driving for weeks or months with a door that cannot be opened from inside. No crashes, fires or injuries are reported.",
   "schema_version": 1,
   "signal": {
     "checked_complaints": 53,
@@ -239,7 +219,7 @@
     "towed": 0
   },
   "slug": "2025-toyota-tacoma-rear-door-latch-fails-to-open-or-close",
-  "summary": "I read all 53 complaints in the signal window. About 50 describe the same failure. An interior door release handle breaks inside the door during normal use. The handle goes loose or 'floppy' and no longer releases the latch, so that door cannot be opened from inside. Most reports are for the driver's door, with some for the front passenger and rear doors. In most cases the exterior handle still works. The theme is labelled 'rear door latch', but the real problem is the inner handle sub-assembly on any door, mostly the front doors. That mismatch probably explains why the automatic check marked 9 complaints off-theme and 9 unclear. Where owners give mileage, failures happened between about 3,400 and 13,000 miles. Dealers, as reported by owners, describe a fractured plastic part where the release cable attaches to the handle, a broken pivot pin or bell-crank, and return springs that came out of their retainers. Several owners had more than one door fail, or a replacement handle fail again. Many owners, reporting what dealers told them, say the part is on national backorder because of high demand, with one figure of 1,600 units. So vehicles are being driven for weeks or months with a door that cannot be opened from inside. Complaints rose steadily, from 2 a month in April and May 2026 to 12 in October 2026. The surge is very strong: 33 complaints in the last 3 months against 7.06 expected. The PRR is 33.8. No crash, fire, injury or tow has been reported. None of the 5 recalls for this vehicle covers door handles. The 2024 Tacoma has 4 complaints on this theme and is surging, but it has no PRR signal yet. The 2026 has 1 complaint. Whether the problem extends to other model years of this generation is a hypothesis that still needs checking.",
+  "summary": "There are 53 complaints about the 2025 Tacoma in this group, filed from October 2025 to October 2026. The monthly count rose steadily, from 1 or 2 a month in spring 2026 to 12 in October 2026. All but one of the 53 describe the same failure. An internal part of the interior door handle assembly breaks during ordinary use. Owners name a plastic piece where the release cable attaches, a hinge pin or bell-crank, the cable itself, or the return springs. Once it breaks, the handle goes loose or limp and no longer releases the latch. The door then opens only from outside, so occupants have to roll down the window and reach the exterior handle, or climb out through another door. Most reports involve the front driver's door, but front passenger and rear doors are also affected. Where mileage is given, it is low (about 3,400 to 13,000 miles). Many owners say a dealer confirmed the failure and told them the replacement part is on national backorder, sometimes for months. Some owners report the handle failing twice, or failing on more than one door. No crashes, fires or injuries are reported. Two Tacoma model years nearby show a few similar reports (2024: 4 complaints and rising; 2026: 1). No existing recall for the 2025 Tacoma covers door handles or latches. The statistical theme is labelled 'rear door latch', but the problem in these complaints is the interior door handle release mechanism on any door.",
   "theme": {
     "id": 18,
     "name": "Rear door latch fails to open or close"

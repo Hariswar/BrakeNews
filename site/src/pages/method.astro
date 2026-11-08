@@ -1,0 +1,288 @@
+---
+// How BrakeNews works and how well it has worked. Every number comes from method.json, written
+// by `make export` from the pipeline's own outputs.
+import Base from "../layouts/Base.astro";
+import CompareBars from "../components/CompareBars.astro";
+import method from "../data/method.json";
+import { monthLabel, num, percent } from "../lib/format";
+
+const { data, grouping, recall_matching: matching, backtest: bt, model: md, alerts, models } = method;
+const alertTotal = alerts ? Object.values(alerts).reduce((s, n) => s + n, 0) : 0;
+
+const FEATURES: Record<string, string> = {
+  theme_recalls: "how often this problem has been recalled on other vehicles",
+  a: "complaints about the problem in the last 24 months",
+  vehicle_age: "the vehicle's age",
+  sibling_signals: "signals for the same problem on other model years of the model",
+  theme_total: "how common the problem is across all vehicles",
+  k3: "complaints in the last 3 months",
+  quiet_months: "months since the last complaint",
+  make_recalls_5y: "the manufacturer's recalls in the last 5 years",
+};
+const months = (range: string) =>
+  range
+    .split(" to ")
+    .map((m) => monthLabel(m))
+    .join(" to ");
+---
+
+<Base
+  title="How BrakeNews works, and how well | BrakeNews"
+  description="How BrakeNews groups NHTSA owner complaints into problems, flags vehicles before recalls, and how often past flags were followed by a recall."
+>
+  <h1>How it works, and how well</h1>
+  <p class="lead">
+    BrakeNews looks for problems owners report about one vehicle far more often than about
+    others, before any recall. Here is each step, with how well it did on past data.
+  </p>
+
+  <nav class="toc small" aria-label="On this page">
+    <a href="#data">Data</a>
+    <a href="#problems">Problems</a>
+    <a href="#flags">Flags</a>
+    <a href="#backtest">Track record</a>
+    <a href="#model">Recall estimate</a>
+    <a href="#checks">AI checks and reports</a>
+    <a href="#limits">Limits</a>
+  </nav>
+
+  <section aria-labelledby="data">
+    <h2 id="data">1. The data</h2>
+    {data && (
+      <p>
+        Every vehicle complaint and recall NHTSA publishes: {num(data.complaints)} complaints
+        received from {monthLabel(data.first_received)} to {monthLabel(data.last_received)}, and{" "}
+        {num(data.recalls ?? 0)} recall campaigns. A complaint is counted once even when it names
+        several components. Names, phone numbers, addresses and similar details are masked in the
+        complaint text before anything else reads it.
+      </p>
+    )}
+  </section>
+
+  <section aria-labelledby="problems">
+    <h2 id="problems">2. Grouping complaints into problems</h2>
+    <p>
+      NHTSA files complaints under broad components such as "engine" or "electrical system",
+      which mix dozens of unrelated failures. BrakeNews groups complaints by what the owner
+      describes instead. Each narrative is turned into a vector of numbers that captures its
+      meaning ({models.embedding}), and similar narratives are clustered together.
+    </p>
+    {grouping && (
+      <p>
+        That gives {grouping.clusters} groups, holding {percent(grouping.grouped_share)} of the{" "}
+        {num(grouping.narratives)} narratives; the rest fit no group well. An AI ({models.labelling})
+        named each group from samples, set aside the ones that are not about a defect (for example,
+        complaints that recall parts are unavailable) and merged duplicates, leaving{" "}
+        {grouping.defect_themes} problems that cover {percent(grouping.defect_share)} of narratives.
+      </p>
+    )}
+    <p>
+      The groups are approximate. Similar-sounding complaints can land together: complaints about
+      the glare from other drivers' headlights share a group with complaints about dim headlights.
+      The checks in step 6 exist for this reason.
+    </p>
+    {matching && (
+      <p>
+        Recalls are matched to problems the same way. A recall's defect summary shortlists the
+        problems it resembles, and the AI picks the ones it actually covers. It checked{" "}
+        {num(matching.checked)} recalls; {percent(matching.matched_share)} cover at least one
+        problem. A recall covers a vehicle's problem when it names that make, model and model year.
+        Matching misses recalls filed under another spelling of the model (such as "Wrangler 4xe"
+        for "Wrangler").
+      </p>
+    )}
+  </section>
+
+  <section aria-labelledby="flags">
+    <h2 id="flags">3. Flagging a vehicle</h2>
+    <p>Two tests run every month for every vehicle and problem.</p>
+    <h3>Compared with other vehicles</h3>
+    <p>
+      Over the last 24 months: what share of this vehicle's complaints are about the problem, and
+      what share of all other vehicles' complaints are? The ratio of the two is the
+      proportional reporting ratio (PRR), the method drug-safety agencies use on adverse-event
+      reports. Comparing shares rather than counts cancels what inflates counts without a defect:
+      a popular model, an older vehicle, a year with more complaints overall. A vehicle is flagged
+      when the problem has at least 3 complaints, the ratio is at least 2, and a chi-square test
+      says the difference is unlikely to be chance.
+    </p>
+    <h3>Compared with its own past</h3>
+    <p>
+      A surge test asks whether the vehicle's complaints in the last three months have shifted
+      toward the problem beyond what its own history predicts (a binomial test, with the false
+      discovery rate controlled across all vehicles each month).
+    </p>
+  </section>
+
+  {bt && (
+    <section aria-labelledby="backtest">
+      <h2 id="backtest">4. Track record</h2>
+      <p>
+        The tests were run month by month over the whole history, using only the complaints
+        received up to each month, and compared with the recalls that came later.
+      </p>
+      <dl class="tiles">
+        <div class="tile">
+          <dt>Recalled problems flagged first</dt>
+          <dd class="value num">{percent(bt.flagged_before_recall)}</dd>
+          <dd class="note">
+            Of {num(bt.recalled_pairs)} vehicle problems later recalled (with 3 or more complaints
+            before the recall)
+          </dd>
+        </div>
+        <div class="tile">
+          <dt>How early</dt>
+          <dd class="value num">{bt.median_months_ahead} months</dd>
+          <dd class="note">Median time from the first flag to the recall</dd>
+        </div>
+        <div class="tile">
+          <dt>Flags followed by a recall</dt>
+          <dd class="value num">{percent(bt.signal_followed_by_recall)}</dd>
+          <dd class="note">Within 24 months, of {num(bt.signals_judged)} flags old enough to judge</dd>
+        </div>
+      </dl>
+      <CompareBars
+        caption="Share of vehicle problems followed by a covering recall within 24 months"
+        rows={[
+          { label: "Surging (vs its own past)", value: bt.surge_followed_by_recall, text: percent(bt.surge_followed_by_recall) },
+          { label: "Flagged (vs other vehicles)", value: bt.signal_followed_by_recall, text: percent(bt.signal_followed_by_recall) },
+          { label: "Same number of complaints, never flagged", value: bt.unflagged_followed_by_recall, text: percent(bt.unflagged_followed_by_recall) },
+        ]}
+      />
+      <p>
+        A flag made a recall about {bt.lift} times as likely as for problems with as many
+        complaints that never stood out; a surge about {bt.surge_lift} times. Most flags are still
+        never followed by a recall. Some are not defects, and many real defects are fixed without a
+        recall. A flag is a reason to look closer, not a prediction.
+      </p>
+    </section>
+  )}
+
+  {md && (
+    <section aria-labelledby="model">
+      <h2 id="model">5. The recall estimate</h2>
+      <p>
+        A model (gradient-boosted trees, LightGBM) estimates for each vehicle and problem the
+        chance that a recall covering it follows within 24 months. It sees only what was known at
+        the time: complaint counts and trends, both tests above, severity (crashes, fires,
+        injuries), the vehicle's age, and context such as{" "}
+        {md.top_features.slice(0, 4).map((f) => FEATURES[f] ?? f).join(", ")}.
+      </p>
+      <p>
+        It was trained on data from {months(md.train_months)}, tuned on data from{" "}
+        {months(md.validation_months)}, and tested on data from {months(md.test_months)}, with gaps between the periods so no recall in one
+        period leaks into another. On the test period, at the same number of alerts as the PRR
+        flag ({num(md.rule_alerts)}):
+      </p>
+      <CompareBars
+        caption={`Of the vehicle problems recalled in the test period, the share each method alerted on (same number of alerts)`}
+        rows={[
+          { label: "Model", value: md.model_recall, text: percent(md.model_recall) },
+          { label: "PRR flag", value: md.rule_recall, text: percent(md.rule_recall) },
+        ]}
+      />
+      <CompareBars
+        caption="Of the alerts, the share followed by a covering recall within 24 months"
+        rows={[
+          { label: "Model", value: md.model_precision, text: percent(md.model_precision) },
+          { label: "PRR flag", value: md.rule_precision, text: percent(md.rule_precision) },
+          { label: "Any vehicle problem (base rate)", value: md.base_rate, text: percent(md.base_rate) },
+        ]}
+      />
+      <p class="small muted">
+        Ranking quality on the test period: average precision {md.average_precision} (the PRR
+        ratio alone: {md.prr_average_precision}), ROC AUC {md.roc_auc}. The estimates run slightly
+        low: they average {percent(md.mean_score)} against {percent(md.base_rate)} observed.
+      </p>
+    </section>
+  )}
+
+  <section aria-labelledby="checks">
+    <h2 id="checks">6. AI checks and investigation reports</h2>
+    {alerts && (
+      <p>
+        Because the problem groups are approximate, an AI ({models.labelling}) reads the recent
+        complaints behind each of the {num(alertTotal)} highest-ranked alerts and decides, one
+        complaint at a time, whether it is about that problem on that vehicle. {num(alerts.confirmed ?? 0)}{" "}
+        alerts were confirmed, {num(alerts.mixed ?? 0)} were mixed and {num(alerts.not_confirmed ?? 0)}{" "}
+        were not confirmed. Vehicle pages flag a problem only when its alert was confirmed and no
+        recall covers it yet.
+      </p>
+    )}
+    <p>
+      For the top confirmed alerts, an AI investigator ({models.investigator}) reads the
+      complaints, compares other model years and vehicles, looks up recalls, and writes a report
+      that cites the NHTSA complaint numbers behind each finding. A second AI ({models.reviewer})
+      fact-checks every finding against the full text of the complaints it cites, and the
+      investigator revises if needed. Only reports the reviewer approves are published. No person
+      reviews them.
+    </p>
+  </section>
+
+  <section aria-labelledby="limits">
+    <h2 id="limits">7. Limits</h2>
+    <ul>
+      <li>Complaints are written by owners and are not verified by NHTSA or by BrakeNews.</li>
+      <li>
+        A recall is only one outcome of a real defect, and many recalls follow a manufacturer's own
+        findings rather than complaints. "Followed by a recall" undercounts real problems.
+      </li>
+      <li>Problem groups, recall matches and checks are made by AI and can be wrong.</li>
+      <li>Vehicles with fewer than 25 complaints have no page; their numbers are too small to compare.</li>
+      <li>
+        Nothing here is safety advice. Check your vehicle's open recalls with your VIN at{" "}
+        <a href="https://www.nhtsa.gov/recalls" rel="noopener">nhtsa.gov/recalls</a>.
+      </li>
+    </ul>
+    <p class="small muted">
+      Source code: <a href="https://github.com/Hariswar/BrakeNews" rel="noopener">github.com/Hariswar/BrakeNews</a>.
+    </p>
+  </section>
+</Base>
+
+<style>
+  .lead {
+    font-size: 1.15rem;
+    color: var(--ink-2);
+  }
+  .toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+  }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+  }
+  .tile dt {
+    font-size: 0.85rem;
+    color: var(--ink-2);
+  }
+  .tile dd {
+    margin: 0;
+  }
+  .value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .note {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    line-height: 1.4;
+  }
+  section li {
+    margin-bottom: 0.4rem;
+  }
+</style>

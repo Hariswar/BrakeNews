@@ -2,6 +2,8 @@
 import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import ReadingBadge from "../components/ReadingBadge.astro";
+import VehiclePicker from "../components/VehiclePicker.astro";
+import { allModels } from "../lib/vehicles";
 import { monthLabel, num, percent, vehicleName } from "../lib/format";
 
 const reports = (await getCollection("investigations"))
@@ -11,6 +13,7 @@ const reports = (await getCollection("investigations"))
       (a.signal.risk_rank ?? Infinity) - (b.signal.risk_rank ?? Infinity) ||
       a.slug.localeCompare(b.slug),
   );
+const hasVehicles = (await allModels()).length > 0;
 const through = reports.map((r) => r.data_through).filter(Boolean).sort().at(-1);
 ---
 
@@ -26,6 +29,13 @@ const through = reports.map((r) => r.data_through).filter(Boolean).sort().at(-1)
       on other vehicles or than it used to. In past data, most problems that were later recalled
       were flagged this way first, typically more than a year ahead.
     </p>
+    {hasVehicles && (
+      <>
+        <h2 class="find">Look up a vehicle</h2>
+        <VehiclePicker />
+        <p class="small"><a href="/vehicles/">Browse all makes</a></p>
+      </>
+    )}
   </section>
 
   <section id="reports" aria-labelledby="reports-h">
@@ -78,12 +88,16 @@ const through = reports.map((r) => r.data_through).filter(Boolean).sort().at(-1)
       A report describes what owners report. It is not a finding that a defect exists, and a high
       score does not mean a recall will happen.
     </p>
+    <p><a href="/method/">How it works, and how often past flags were followed by a recall</a></p>
   </section>
 </Base>
 
 <style>
   .intro h1 {
     font-size: 2.1rem;
+  }
+  .find {
+    margin-top: 1.5rem;
   }
   .intro p {
     font-size: 1.15rem;

@@ -7,6 +7,7 @@ import MonthlyChart from "../../components/MonthlyChart.astro";
 import {
   dateLabel, monthLabel, nhtsaRecallUrl, nhtsaVehicleUrl, num, percent, plural, vehicleName,
 } from "../../lib/format";
+import { findVehicleUrl } from "../../lib/vehicles";
 
 export async function getStaticPaths() {
   const reports = await getCollection("investigations");
@@ -40,6 +41,7 @@ const severity = [
 ].filter(Boolean) as string[];
 
 const hasRisk = s.recall_risk != null;
+const vehicleUrl = await findVehicleUrl(r.vehicle.make, r.vehicle.model, r.vehicle.model_year);
 
 // Long summaries enumerate groups as "(1) ... (2) ...": give each group its own paragraph.
 const summary = r.summary.split(/\s+(?=\(\d+\)\s)/);
@@ -189,6 +191,12 @@ const summary = r.summary.split(/\s+(?=\(\d+\)\s)/);
           {r.provenance.reviewer_model && `, fact-checked by a separate ${r.provenance.reviewer_model} reviewer`}.
           Not reviewed by a person.
         </li>
+        {vehicleUrl && (
+          <li>
+            Everything else owners report about this vehicle, and its recalls:{" "}
+            <a href={vehicleUrl}>{vehicle}</a>.
+          </li>
+        )}
         <li>
           The complaint numbers above are NHTSA's own; the original complaints and any open
           recalls are on <a href={nhtsaVehicleUrl(r.vehicle)} rel="noopener">NHTSA's page for the {vehicle}</a>.

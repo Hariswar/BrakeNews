@@ -7,6 +7,9 @@ const MAKES: Record<string, string> = {
   "ROLLS-ROYCE": "Rolls-Royce",
   "LAND ROVER": "Land Rover",
   MINI: "MINI",
+  GEO: "Geo",
+  "SANTA FE": "Santa Fe",
+  "CAN-AM": "Can-Am",
 };
 
 // Words of three letters or fewer are usually model codes (MDX, RAV4, CX-5): keep them as

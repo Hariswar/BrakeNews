@@ -1,0 +1,70 @@
+{
+  "alerts": {
+    "confirmed": 2478,
+    "mixed": 103,
+    "not_confirmed": 1671,
+    "unchecked": 2
+  },
+  "backtest": {
+    "flagged_before_recall": 0.731,
+    "flagged_or_surged_before_recall": 0.758,
+    "lift": 5.1,
+    "median_months_ahead": 18.0,
+    "recalled_pairs": 2986,
+    "signal_followed_by_recall": 0.0318,
+    "signals_judged": 38512,
+    "surge_followed_by_recall": 0.051,
+    "surge_lift": 8.3,
+    "surges_judged": 15480,
+    "unflagged_followed_by_recall": 0.0062
+  },
+  "data": {
+    "complaints": 1609665,
+    "first_received": "1995-01",
+    "last_received": "2026-10",
+    "recalls": 26445
+  },
+  "grouping": {
+    "clusters": 128,
+    "defect_share": 0.782,
+    "defect_themes": 93,
+    "grouped_share": 0.874,
+    "narratives": 1605624
+  },
+  "model": {
+    "average_precision": 0.041,
+    "base_rate": 0.0103,
+    "mean_score": 0.007,
+    "model_precision": 0.0401,
+    "model_recall": 0.409,
+    "prr_average_precision": 0.009,
+    "roc_auc": 0.798,
+    "rule_alerts": 55777,
+    "rule_precision": 0.0236,
+    "rule_recall": 0.241,
+    "scored_pairs": 37834,
+    "test_months": "2021-01 to 2024-10",
+    "test_rows": 528627,
+    "top_features": [
+      "theme_recalls",
+      "a",
+      "vehicle_age",
+      "sibling_signals",
+      "theme_total",
+      "k3"
+    ],
+    "train_months": "1995-01 to 2013-10",
+    "validation_months": "2016-01 to 2018-10"
+  },
+  "models": {
+    "embedding": "sentence-transformers/all-MiniLM-L6-v2",
+    "investigator": "claude-opus-5-5",
+    "labelling": "claude-haiku-5-5",
+    "reviewer": "claude-opus-5-5"
+  },
+  "recall_matching": {
+    "checked": 21649,
+    "matched_share": 0.623
+  },
+  "schema_version": 1
+}

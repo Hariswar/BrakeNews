@@ -1,0 +1,361 @@
+---
+// One page per vehicle (make, model, model year) with enough complaints (pipeline/vehicles.py).
+import { getCollection } from "astro:content";
+import Base from "../../../../layouts/Base.astro";
+import MonthlyChart from "../../../../components/MonthlyChart.astro";
+import RecallItem from "../../../../components/RecallItem.astro";
+import Crumbs from "../../../../components/Crumbs.astro";
+import { makeName, modelName, monthLabel, nhtsaVehicleUrl, num, percent, plural, vehicleName } from "../../../../lib/format";
+import {
+  allModels, makeUrl, modelUrl, monthlyList, themeName, yearUrl,
+  type ModelRecord, type YearRecord,
+} from "../../../../lib/vehicles";
+
+export async function getStaticPaths() {
+  const models = await allModels();
+  return models.flatMap((m) =>
+    m.years.map((y) => ({
+      params: { make: m.make_slug, model: m.model_slug, year: String(y.model_year) },
+      props: { m, y },
+    })),
+  );
+}
+
+interface Props {
+  m: ModelRecord;
+  y: YearRecord;
+}
+const { m, y } = Astro.props;
+const [nhtsaMake, nhtsaModel] = y.nhtsa;
+const v = { make: nhtsaMake, model: nhtsaModel, model_year: y.model_year };
+const name = vehicleName({ make: m.make, model: m.model, model_year: y.model_year });
+
+// Published investigation reports on this vehicle, by theme.
+const reports = (await getCollection("investigations"))
+  .map((e) => e.data)
+  .filter((r) => r.vehicle.make === nhtsaMake && r.vehicle.model === nhtsaModel && r.vehicle.model_year === y.model_year);
+const reportFor = new Map(reports.map((r) => [r.theme.id, r]));
+
+const flagged = y.themes.filter((t) => t.flagged);
+const MIN_RECENT = 3; // as signals.py: fewer recent complaints make the ratio noise
+const recalls = y.recalls.map((id) => ({ id, ...m.recalls[id] })).filter((r) => r.date !== undefined);
+const urgent = recalls.filter((r) => r.do_not_drive || r.park_outside);
+
+const severity = [
+  plural(y.crashes, "crash", "crashes"),
+  plural(y.fires, "fire"),
+  `${plural(y.injured, "person", "people")} injured`,
+  `${plural(y.deaths, "death")}`,
+];
+
+const description =
+  `${num(y.complaints)} owner complaints and ${plural(recalls.length, "recall")} for the ${name}` +
+  (flagged.length
+    ? `, including ${flagged.length === 1 ? "a problem" : `${flagged.length} problems`} reported far more often than on other vehicles, with no recall yet.`
+    : ": what owners report and which problems recalls cover.");
+---
+
+<Base title={`${name}: problems, complaints and recalls | BrakeNews`} description={description}>
+  <Crumbs items={[
+    { label: "Vehicles", href: "/vehicles/" },
+    { label: makeName(m.make), href: makeUrl(m) },
+    { label: modelName(m.model), href: modelUrl(m) },
+    { label: String(y.model_year) },
+  ]} />
+
+  <h1>{name}</h1>
+  <p class="sub">What owners report to NHTSA, and which problems a recall covers.</p>
+
+  {urgent.length > 0 && (
+    <aside class="urgent" role="note">
+      <strong>⚠ Safety recall with a {urgent.some((r) => r.do_not_drive) ? "do-not-drive" : "park-outside"} warning.</strong>{" "}
+      Check whether your vehicle is affected at <a href="https://www.nhtsa.gov/recalls" rel="noopener">nhtsa.gov/recalls</a> with your VIN.
+      See {urgent.map((r, i) => <>{i > 0 && ", "}<a href={`#recall-${r.id}`} class="mono">{r.id}</a></>)}.
+    </aside>
+  )}
+
+  {reports.length > 0 && (
+    <aside class="reports">
+      <strong>{reports.length === 1 ? "Investigation report" : "Investigation reports"}:</strong>
+      <ul>
+        {reports.map((r) => (
+          <li><a href={`/investigations/${r.slug}/`}>{r.theme.name}</a>: {r.reading.label.toLowerCase()}</li>
+        ))}
+      </ul>
+    </aside>
+  )}
+
+  <dl class="tiles">
+    <div class="tile">
+      <dt>Complaints</dt>
+      <dd class="value num">{num(y.complaints)}</dd>
+      <dd class="note">Received {monthLabel(y.first_received)} to {monthLabel(y.last_received)}</dd>
+    </div>
+    <div class="tile">
+      <dt>Recalls</dt>
+      <dd class="value num">{num(recalls.length)}</dd>
+      <dd class="note">Safety recalls naming this model year</dd>
+    </div>
+    <div class="tile">
+      <dt>Flagged problems</dt>
+      <dd class="value num">{num(flagged.length)}</dd>
+      <dd class="note">Reported far more than on other vehicles, checked, no recall yet</dd>
+    </div>
+  </dl>
+  <p class="small muted">Reported in these complaints: {severity.join(", ")}.</p>
+
+  <MonthlyChart monthly={monthlyList(y.monthly)} through={m.data_through} caption={`Complaints received about the ${name}`} />
+
+  <section aria-labelledby="problems">
+    <h2 id="problems">Problems owners report</h2>
+    {y.themes.length === 0 ? (
+      <p>None of this vehicle's complaints fall into a specific problem often enough to list.</p>
+    ) : (
+      <>
+        <div class="table-wrap">
+          <table class="problems">
+            <thead>
+              <tr>
+                <th scope="col">Problem</th>
+                <th scope="col" class="r">Complaints</th>
+                <th scope="col" class="r">Share</th>
+                <th scope="col" class="r"><abbr title="How much more often this vehicle's complaints from the last 24 months are about this problem than other vehicles' complaints are">vs others</abbr></th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {y.themes.map((t) => {
+                const report = reportFor.get(t.id);
+                return (
+                  <tr class={t.flagged ? "flagged" : undefined}>
+                    <th scope="row">{themeName(t.id)}</th>
+                    <td class="r num" data-label="Complaints">{num(t.complaints)}</td>
+                    <td class="r num" data-label="Share">{percent(t.share)}</td>
+                    <td class="r num" data-label="vs others">{t.recent_complaints >= MIN_RECENT && t.recent_prr != null ? `${t.recent_prr}×` : "–"}</td>
+                    <td class="status">
+                      {t.flagged && (
+                        <span>
+                          <strong>Flagged</strong>{t.flagged_since && ` since ${monthLabel(t.flagged_since)}`}
+                          {t.rising && ", rising"}
+                          {t.recall_risk != null && <><br /><span class="muted">Estimated recall chance {percent(t.recall_risk)}</span></>}
+                          {report && <><br /><a href={`/investigations/${report.slug}/`}>Read the report</a></>}
+                        </span>
+                      )}
+                      {t.recalls.length > 0 && (
+                        <span>
+                          Recall{" "}
+                          {t.recalls.map((id, i) => (
+                            <>{i > 0 && ", "}<a class="mono" href={`#recall-${id}`}>{id}</a></>
+                          ))}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+        <p class="small muted">
+          Problems are groups of complaints with the same meaning, formed by AI and approximate. "vs
+          others" compares this vehicle's last 24 months of complaints with other vehicles' (1× is
+          typical; shown from 3 recent complaints). A problem is flagged only when an AI check confirmed the recent complaints are
+          really about it.
+        </p>
+      </>
+    )}
+  </section>
+
+  <section aria-labelledby="recalls">
+    <h2 id="recalls">Recalls</h2>
+    {recalls.length === 0 ? (
+      <p>No safety recalls name the {name}.</p>
+    ) : (
+      <ul class="recalls">
+        {recalls.map((r) => <RecallItem id={r.id} recall={m.recalls[r.id]} make={nhtsaMake} model={nhtsaModel} />)}
+      </ul>
+    )}
+  </section>
+
+  {m.years.length > 1 && (
+    <section aria-labelledby="years">
+      <h2 id="years">Other model years</h2>
+      <ul class="years">
+        {m.years.map((o) => (
+          <li>
+            {o.model_year === y.model_year ? (
+              <span class="year current" aria-current="page">{o.model_year}</span>
+            ) : (
+              <a class="year" href={yearUrl(m, o.model_year)}>
+                {o.model_year}
+                <span class="muted small"> {num(o.complaints)}</span>
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )}
+
+  <section class="about small" aria-labelledby="about">
+    <h2 id="about">About this data</h2>
+    <p>
+      NHTSA complaints and recalls through {monthLabel(m.data_through, true)}. Complaints are
+      counted once each, however many components they name. Original complaints are on{" "}
+      <a href={nhtsaVehicleUrl(v)} rel="noopener">NHTSA's page for the {name}</a>.
+    </p>
+  </section>
+</Base>
+
+<style>
+  .sub {
+    color: var(--ink-2);
+    margin: 0 0 1.25rem;
+  }
+  .urgent {
+    border-left: 4px solid #d03b3b;
+    background: color-mix(in srgb, #d03b3b 8%, var(--surface));
+    padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0;
+    margin: 0 0 1rem;
+  }
+  .reports {
+    background: var(--callout);
+    border-left: 3px solid var(--accent);
+    padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0;
+    margin: 0 0 1rem;
+  }
+  .reports ul {
+    margin: 0.25rem 0 0;
+    padding-left: 1.25rem;
+  }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+    gap: 0.75rem;
+    margin: 0 0 0.75rem;
+  }
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+  }
+  .tile dt {
+    font-size: 0.85rem;
+    color: var(--ink-2);
+  }
+  .tile dd {
+    margin: 0;
+  }
+  .value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .note {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    line-height: 1.4;
+  }
+  .table-wrap {
+    overflow-x: auto;
+  }
+  .problems {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  .problems th,
+  .problems td {
+    text-align: left;
+    vertical-align: top;
+    padding: 0.5rem 0.75rem 0.5rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .problems thead th {
+    font-weight: 600;
+    color: var(--ink-2);
+    font-size: 0.8rem;
+    border-bottom-color: var(--axis);
+  }
+  .problems tbody th {
+    font-weight: 500;
+  }
+  .problems .r {
+    text-align: right;
+    white-space: nowrap;
+  }
+  @media (max-width: 40rem) {
+    .problems thead {
+      display: none;
+    }
+    .problems tr {
+      display: grid;
+      grid-template-columns: repeat(3, auto) 1fr;
+      column-gap: 1rem;
+      border-bottom: 1px solid var(--rule);
+      padding: 0.5rem 0;
+    }
+    .problems th,
+    .problems td {
+      border: 0;
+      padding: 0;
+    }
+    .problems tbody th,
+    .problems td.status {
+      grid-column: 1 / -1;
+    }
+    .problems td.status:empty {
+      display: none;
+    }
+    .problems td.r {
+      text-align: left;
+    }
+    .problems td[data-label]::before {
+      content: attr(data-label) " ";
+      color: var(--ink-muted);
+      font-size: 0.8rem;
+    }
+  }
+  .problems tr.flagged th {
+    font-weight: 700;
+  }
+  .status {
+    min-width: 11rem;
+  }
+  abbr {
+    text-decoration: underline dotted;
+    cursor: help;
+  }
+  .recalls {
+    list-style: none;
+    padding: 0;
+  }
+  .years {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .year {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    text-decoration: none;
+  }
+  .year.current {
+    background: var(--pill);
+    font-weight: 600;
+  }
+  .about {
+    margin-top: 3rem;
+    color: var(--ink-2);
+  }
+  .about h2 {
+    font-size: 1rem;
+  }
+</style>

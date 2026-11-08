@@ -29,6 +29,11 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <header class="site-header">
       <a class="brand" href="/">BrakeNews</a>
       <span class="tagline">Owner complaints, read early</span>
+      <nav class="nav small" aria-label="Site">
+        <a href="/#reports">Reports</a>
+        <a href="/vehicles/">Vehicles</a>
+        <a href="/method/">How it works</a>
+      </nav>
     </header>
     <main id="main">
       <slot />
@@ -154,6 +159,14 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     font-size: 1.15rem;
     color: var(--ink);
     text-decoration: none;
+  }
+  .nav {
+    margin-left: auto;
+    display: flex;
+    gap: 1rem;
+  }
+  .nav a {
+    color: var(--ink-2);
   }
   .tagline {
     color: var(--ink-muted);

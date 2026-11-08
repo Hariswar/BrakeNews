@@ -1,16 +1,17 @@
 ---
-// Complaints received per month: one series, so no legend; the heading names it.
-// Built from HTML boxes rather than a scaled SVG so the text keeps its size on a phone.
-// Every value is also in the table view, so the hover tooltip never gates anything.
+// Complaints received per month (per year when the span is long): one series, so no legend;
+// the caption names it. Built from HTML boxes rather than a scaled SVG so the text keeps its
+// size on a phone. Every value is also in the table view, so the tooltip never gates anything.
 import { monthLabel, num, plural } from "../lib/format";
 
 interface Props {
   monthly: { month: string; complaints: number }[];
   through?: string | null; // last month to show, even if it had no complaints
-  marker?: { month: string; label: string } | null;
+  marker?: { month: string; label: string } | null; // monthly view only
   caption: string;
+  maxMonths?: number; // longer spans are shown per year
 }
-const { monthly, through, marker, caption } = Astro.props;
+const { monthly, through, marker, caption, maxMonths = 72 } = Astro.props;
 
 const ym = (s: string) => s.slice(0, 7);
 const toIndex = (s: string) => {
@@ -19,38 +20,62 @@ const toIndex = (s: string) => {
 };
 const toMonth = (i: number) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
 
+interface Bar {
+  key: string; // "2025-10" or "2025"
+  short: string; // table and axis
+  long: string; // tooltip and screen readers
+  value: number;
+}
+
 const counts = new Map(monthly.map((d) => [ym(d.month), d.complaints]));
 const months = [...counts.keys()].sort();
 const first = months.length ? toIndex(months[0]) : 0;
 const lastData = months.length ? toIndex(months[months.length - 1]) : 0;
-const last = through ? Math.max(lastData, toIndex(through)) : lastData;
-const bars = Array.from({ length: months.length ? last - first + 1 : 0 }, (_, i) => {
-  const month = toMonth(first + i);
-  return { month, value: counts.get(month) ?? 0 };
-});
+const last = through ? Math.max(lastData, toIndex(ym(through))) : lastData;
+const span = months.length ? last - first + 1 : 0;
+const yearly = span > maxMonths;
 
-// Clean y ticks: a 1/2/5 step giving at most four intervals.
+let bars: Bar[];
+if (yearly) {
+  const y0 = Math.floor(first / 12);
+  const y1 = Math.floor(last / 12);
+  const byYear = new Map<number, number>();
+  for (const [m, k] of counts) byYear.set(Number(m.slice(0, 4)), (byYear.get(Number(m.slice(0, 4))) ?? 0) + k);
+  bars = Array.from({ length: y1 - y0 + 1 }, (_, i) => {
+    const y = y0 + i;
+    const partial = y === y1 && last % 12 !== 11 ? ` (to ${monthLabel(toMonth(last))})` : "";
+    return { key: String(y), short: String(y), long: `${y}${partial}`, value: byYear.get(y) ?? 0 };
+  });
+} else {
+  bars = Array.from({ length: span }, (_, i) => {
+    const m = toMonth(first + i);
+    return { key: m, short: monthLabel(m), long: monthLabel(m, true), value: counts.get(m) ?? 0 };
+  });
+}
+
+// Clean y ticks: a 1 / 2 / 2.5 / 5 step giving at most four intervals.
 const max = Math.max(1, ...bars.map((b) => b.value));
+const pow = 10 ** Math.floor(Math.log10(max / 4) || 0);
 const step =
-  [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find((s) => max / s <= 4) ?? Math.ceil(max / 4);
+  [1, 2, 2.5, 5, 10].map((f) => f * pow).find((s) => Number.isInteger(s) && max / s <= 4) ??
+  Math.ceil(max / 4);
 const top = Math.ceil(max / step) * step;
 const ticks = Array.from({ length: top / step + 1 }, (_, i) => i * step);
 
-// X labels: the first month in full, then each January as its year, spaced apart enough
-// (in months) that they cannot collide even on a narrow screen.
-const minGap = Math.max(4, Math.ceil(bars.length / 6));
+// X labels spaced apart enough (in bars) that they cannot collide even on a narrow screen.
+// Monthly: the first month in full, then each January as its year. Yearly: every nth year.
+const minGap = Math.max(yearly ? 2 : 4, Math.ceil(bars.length / 6));
 const xLabels: { i: number; text: string }[] = [];
 bars.forEach((b, i) => {
   const isFirst = i === 0;
-  const isJan = b.month.endsWith("-01");
-  if (!isFirst && !isJan) return;
+  if (!isFirst && !(yearly || b.key.endsWith("-01"))) return;
   const prev = xLabels[xLabels.length - 1];
   if (prev && i - prev.i < minGap) return;
-  xLabels.push({ i, text: isFirst ? monthLabel(b.month) : b.month.slice(0, 4) });
+  xLabels.push({ i, text: isFirst || yearly ? b.short : b.key.slice(0, 4) });
 });
 
 const pos = (i: number) => ((i + 0.5) / bars.length) * 100;
-const markerIndex = marker ? bars.findIndex((b) => b.month === ym(marker.month)) : -1;
+const markerIndex = marker && !yearly ? bars.findIndex((b) => b.key === ym(marker.month)) : -1;
 const peak = bars.reduce((best, b, i) => (b.value > bars[best].value ? i : best), 0);
 const total = bars.reduce((s, b) => s + b.value, 0);
 ---
@@ -84,8 +109,8 @@ const total = bars.reduce((s, b) => s + b.value, 0);
                 class="col"
                 role="listitem"
                 tabindex="0"
-                aria-label={`${monthLabel(b.month, true)}: ${plural(b.value, "complaint")}`}
-                data-month={monthLabel(b.month, true)}
+                aria-label={`${b.long}: ${plural(b.value, "complaint")}`}
+                data-month={b.long}
                 data-value={plural(b.value, "complaint")}
               >
                 {b.value > 0 && <div class="bar" style={`height:${(b.value / top) * 100}%`} />}
@@ -115,14 +140,14 @@ const total = bars.reduce((s, b) => s + b.value, 0);
         <table class="small">
           <thead>
             <tr>
-              <th scope="col">Month</th>
+              <th scope="col">{yearly ? "Year" : "Month"}</th>
               <th scope="col">Complaints</th>
             </tr>
           </thead>
           <tbody>
             {bars.map((b) => (
               <tr>
-                <td>{monthLabel(b.month)}</td>
+                <td>{b.long}</td>
                 <td class="num">{num(b.value)}</td>
               </tr>
             ))}

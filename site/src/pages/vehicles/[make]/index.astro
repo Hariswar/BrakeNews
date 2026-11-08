@@ -1,0 +1,55 @@
+---
+// A make's page: its models, with the model years that have pages.
+import Crumbs from "../../../components/Crumbs.astro";
+import Base from "../../../layouts/Base.astro";
+import { modelName, num } from "../../../lib/format";
+import { allMakes, modelUrl, type Make } from "../../../lib/vehicles";
+
+export async function getStaticPaths() {
+  return (await allMakes()).map((mk) => ({ params: { make: mk.slug }, props: { mk } }));
+}
+
+interface Props {
+  mk: Make;
+}
+const { mk } = Astro.props;
+const models = [...mk.models].sort((a, b) => modelName(a.model).localeCompare(modelName(b.model)));
+---
+
+<Base
+  title={`${mk.label} problems and recalls by model | BrakeNews`}
+  description={`Owner complaints, recalls and flagged problems for ${mk.label} models.`}
+>
+  <Crumbs items={[{ label: "Vehicles", href: "/vehicles/" }, { label: mk.label }]} />
+  <h1>{mk.label}</h1>
+  <ul class="models">
+    {models.map((m) => {
+      const years = m.years.map((y) => y.model_year);
+      const complaints = m.years.reduce((s, y) => s + y.complaints, 0);
+      const flagged = m.years.filter((y) => y.themes.some((t) => t.flagged)).length;
+      return (
+        <li>
+          <a href={modelUrl(m)}>{modelName(m.model)}</a>
+          <span class="small muted num">
+            {" "}
+            {years.length === 1 ? years[0] : `${Math.min(...years)}–${Math.max(...years)}`} · {num(complaints)} complaints
+            {flagged > 0 && ` · ${flagged} ${flagged === 1 ? "year" : "years"} flagged`}
+          </span>
+        </li>
+      );
+    })}
+  </ul>
+</Base>
+
+<style>
+  .models {
+    list-style: none;
+    padding: 0;
+    columns: 2 18rem;
+    column-gap: 2rem;
+  }
+  .models li {
+    padding: 0.3rem 0;
+    break-inside: avoid;
+  }
+</style>

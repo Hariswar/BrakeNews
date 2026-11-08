@@ -1,7 +1,7 @@
 {
   "investigations": [
     {
-      "headline": "2026 Honda Odyssey: Auto Idle Stop fails to restart the engine at stops, leaving the van shut down and shifted into Park in traffic. The same failure is surging on 2024–2025 Odysseys, and no recall covers it.",
+      "headline": "2026 Honda Odyssey: engine repeatedly fails to restart after Auto Idle Stop, leaving the van stuck in traffic. The same complaint theme is surging on 2024–2025 Odysseys",
       "reading": {
         "confidence": "high",
         "key": "consistent_pattern",
@@ -23,7 +23,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2025 Honda Odyssey: Auto Idle Stop often fails to restart the engine at stops, leaving the van stalled in traffic; starter and battery replacements do not reliably fix it, and no recall covers it",
+      "headline": "2025 Honda Odyssey: engine often fails to restart after Auto Idle Stop, leaving the van stalled in traffic",
       "reading": {
         "confidence": "high",
         "key": "consistent_pattern",
@@ -45,7 +45,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2025 Acura MDX: engine often fails to restart after Auto Idle Stop, leaving the vehicle stranded in traffic. Repeat starter and battery replacements have not fixed it, and no recall covers it.",
+      "headline": "2025 Acura MDX: engine often fails to restart after Auto Idle Stop shuts it off, leaving the vehicle stuck in traffic; no recall covers it",
       "reading": {
         "confidence": "high",
         "key": "consistent_pattern",
@@ -67,7 +67,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2024 Honda Odyssey: engine fails to restart after Auto Idle Stop shuts it off at a stop, leaving the van stalled in traffic. The same failure is reported on 2025–2026 Odysseys and other 2025 Honda/Acura models, and no recall covers it",
+      "headline": "2024 Honda Odyssey: engine shuts off under Auto Idle Stop at stops and intermittently fails to restart, leaving vans stranded in traffic",
       "reading": {
         "confidence": "high",
         "key": "consistent_pattern",
@@ -89,7 +89,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2026 Honda Pilot: 11 owners report the steering wheel clicking when turned, often blamed on the clock spring (cable reel). Dealer replacements are not fixing it. It looks like a noise defect, and no airbag or control failure has been reported.",
+      "headline": "2026 Honda Pilot: owners report steering-wheel clicking when turning, often traced to the clock spring, with dealer repairs that don't last",
       "reading": {
         "confidence": "medium",
         "key": "emerging_pattern",
@@ -111,7 +111,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2025 Toyota Tacoma: interior door handle assemblies break in normal use at low mileage, so occupants cannot open the door from inside. Replacement parts are reported on national backorder and no recall covers the problem.",
+      "headline": "2025 Toyota Tacoma: interior door handles break in normal use, so the door can't be opened from inside. Owners report national parts backorders and no recall.",
       "reading": {
         "confidence": "high",
         "key": "consistent_pattern",
@@ -133,7 +133,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2024 Jeep Wrangler 4xe: two separate loss-of-power problems. The October 2025 over-the-air update shutdowns are already recalled under 25V710000. A second pattern is not covered by any recall: since the 68C battery recall software (25V741000), owners report electric drive power dropping, then a delay of several seconds before the gas engine takes over.",
+      "headline": "2024 Jeep Wrangler 4xe: two software-related losses of drive power. The October 2025 update shutdowns are covered by recall 25V710000. A second, ongoing power loss in Electric mode that owners link to the Recall 68C battery remedy (25V741000) has no recall",
       "reading": {
         "confidence": "medium",
         "key": "consistent_pattern",
@@ -155,7 +155,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2026 Ford Explorer: seven owners report the panoramic sunroof glass shattering without impact while driving, all filed within about six months; no recall covers it",
+      "headline": "2026 Ford Explorer: seven owners report the panoramic sunroof glass suddenly shattering while driving. The vehicles were new, and no recall covers the problem.",
       "reading": {
         "confidence": "medium",
         "key": "emerging_pattern",
@@ -177,7 +177,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2025 Wrangler: owners of the 4xe report electric drive power fading, sometimes in steps, then a delay before the gas engine takes over. One October 2025 report (and probably a second) matches OTA recall 25V710000, which the automatic matching missed",
+      "headline": "2025 Jeep Wrangler 4xe: owners report electric drive power cut in stages, then a delay before the gas engine takes over",
       "reading": {
         "confidence": "medium",
         "key": "emerging_pattern",
@@ -199,7 +199,7 @@
       "written": "2026-11-08"
     },
     {
-      "headline": "2025 Honda Ridgeline: the Auto Idle Stop system often fails to restart the engine at stops, leaving trucks stuck in traffic lanes and intersections. No recall covers it.",
+      "headline": "2025 Honda Ridgeline: Auto Idle Stop repeatedly fails to restart the engine at stops, stranding trucks in traffic",
       "reading": {
         "confidence": "medium",
         "key": "consistent_pattern",

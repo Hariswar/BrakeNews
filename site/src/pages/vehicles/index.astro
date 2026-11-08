@@ -1,0 +1,48 @@
+---
+import Base from "../../layouts/Base.astro";
+import VehiclePicker from "../../components/VehiclePicker.astro";
+import { num } from "../../lib/format";
+import { allMakes, makeUrl } from "../../lib/vehicles";
+
+const makes = await allMakes();
+---
+
+<Base
+  title="Vehicles: problems, complaints and recalls | BrakeNews"
+  description="Find any car, truck or SUV with at least 25 owner complaints to NHTSA: what owners report, flagged problems and recalls."
+>
+  <h1>Vehicles</h1>
+  {makes.length === 0 ? (
+    <p>Vehicle pages are not built yet. Run <code>make export</code>, then build the site.</p>
+  ) : (
+    <>
+      <p class="muted">
+        Every make, model and model year with at least 25 owner complaints to NHTSA:{" "}
+        {num(makes.reduce((s, mk) => s + mk.models.reduce((t, m) => t + m.years.length, 0), 0))} vehicles.
+      </p>
+      <VehiclePicker />
+      <h2>All makes</h2>
+      <ul class="makes">
+        {makes.map((mk) => (
+          <li>
+            <a href={makeUrl(mk.models[0])}>{mk.label}</a>
+            <span class="small muted"> {mk.models.length}</span>
+          </li>
+        ))}
+      </ul>
+    </>
+  )}
+</Base>
+
+<style>
+  .makes {
+    list-style: none;
+    padding: 0;
+    columns: 3 11rem;
+    column-gap: 2rem;
+  }
+  .makes li {
+    padding: 0.2rem 0;
+    break-inside: avoid;
+  }
+</style>

@@ -73,4 +73,60 @@ const investigations = defineCollection({
   }),
 });
 
-export const collections = { investigations };
+// Vehicle pages: one file per make and model (pipeline/vehicles.py). The files are not
+// committed; without them the collection is empty and no vehicle pages are built.
+const vehicleTheme = z.object({
+  id: z.number().int(),
+  complaints: z.number().int(),
+  share: z.number(),
+  recent_complaints: z.number().int().default(0),
+  recent_prr: z.number().optional(),
+  recall_risk: z.number().optional(),
+  recalls: z.array(z.string()).default([]),
+  flagged: z.boolean().default(false),
+  rising: z.boolean().default(false),
+  flagged_since: month.optional(),
+});
+
+const vehicles = defineCollection({
+  loader: glob({ pattern: "*.json", base: "./src/data/vehicles" }),
+  schema: z.object({
+    schema_version: z.literal(1),
+    make: z.string(),
+    model: z.string(),
+    make_slug: z.string(),
+    model_slug: z.string(),
+    data_through: month,
+    recalls: z.record(
+      z.string(),
+      z.object({
+        date: z.string().nullable(),
+        components: z.array(z.string()),
+        summary: z.string().nullable(),
+        consequence: z.string().nullable(),
+        remedy: z.string().nullable(),
+        affected: z.number().int().nullable(),
+        do_not_drive: z.boolean(),
+        park_outside: z.boolean(),
+      }),
+    ),
+    years: z.array(
+      z.object({
+        model_year: z.number().int(),
+        nhtsa: z.tuple([z.string(), z.string()]), // NHTSA's make and model spelling for this year
+        complaints: z.number().int(),
+        crashes: z.number().int(),
+        fires: z.number().int(),
+        injured: z.number().int(),
+        deaths: z.number().int(),
+        first_received: month,
+        last_received: month,
+        monthly: z.object({ start: month, counts: z.array(z.number().int()) }),
+        themes: z.array(vehicleTheme),
+        recalls: z.array(z.string()),
+      }),
+    ),
+  }),
+});
+
+export const collections = { investigations, vehicles };

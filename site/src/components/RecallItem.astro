@@ -1,0 +1,78 @@
+---
+// One safety recall, as NHTSA describes it. Do-not-drive and park-outside warnings come first
+// and carry a label, never color alone.
+import { dateLabel, nhtsaRecallUrl, num } from "../lib/format";
+import { nameWords, readable, type Recall } from "../lib/vehicles";
+
+interface Props {
+  id: string;
+  recall: Recall;
+  make: string; // the page's vehicle, capitalized in all-caps recall texts
+  model: string;
+}
+const { id, recall: r, make, model } = Astro.props;
+const names = await nameWords(make, model);
+const components = r.components.map((c) => readable(c)?.toLowerCase().replace(/:/g, ": ")).join("; ");
+---
+
+<li class="recall" id={`recall-${id}`}>
+  <p class="head">
+    <a class="mono id" href={nhtsaRecallUrl(id)} rel="noopener">{id}</a>
+    {r.date && <span class="small muted">{dateLabel(r.date)}</span>}
+    {r.affected != null && r.affected > 0 && <span class="small muted">{num(r.affected)} vehicles affected</span>}
+  </p>
+  {(r.do_not_drive || r.park_outside) && (
+    <p class="warn small">
+      <strong>⚠ {r.do_not_drive ? "Do not drive" : "Park outside"}</strong>
+      {r.do_not_drive && r.park_outside && <strong>, park outside</strong>}
+      {": NHTSA advises this until the repair is done."}
+    </p>
+  )}
+  {components && <p class="small muted comp">{components}</p>}
+  {r.summary && <p>{readable(r.summary, names)}</p>}
+  {r.consequence && <p class="small">{readable(r.consequence, names)}</p>}
+  {r.remedy && (
+    <details class="small">
+      <summary>Remedy</summary>
+      <p>{readable(r.remedy, names)}</p>
+    </details>
+  )}
+</li>
+
+<style>
+  .recall {
+    border-top: 1px solid var(--rule);
+    padding: 0.75rem 0 0.25rem;
+  }
+  .head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1rem;
+    align-items: baseline;
+    margin-bottom: 0.25rem;
+  }
+  .id {
+    font-weight: 600;
+  }
+  .comp {
+    margin-bottom: 0.4rem;
+  }
+  .warn {
+    border-left: 4px solid #d03b3b;
+    padding-left: 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+  p {
+    margin-bottom: 0.5rem;
+  }
+  summary {
+    cursor: pointer;
+    color: var(--link);
+  }
+  .recall:target {
+    background: var(--callout);
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
+</style>
