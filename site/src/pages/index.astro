@@ -1,14 +1,126 @@
 ---
+import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
+import ReadingBadge from "../components/ReadingBadge.astro";
+import { monthLabel, num, percent, vehicleName } from "../lib/format";
+
+const reports = (await getCollection("investigations"))
+  .map((e) => e.data)
+  .sort(
+    (a, b) =>
+      (a.signal.risk_rank ?? Infinity) - (b.signal.risk_rank ?? Infinity) ||
+      a.slug.localeCompare(b.slug),
+  );
+const through = reports.map((r) => r.data_through).filter(Boolean).sort().at(-1);
 ---
 
 <Base
   title="BrakeNews: car problems and recall risk from owner complaints"
-  description="See what problems owners report for any car, which problems are rising, and whether a recall covers them."
+  description="Which car problems owners are reporting far more than they should, often before a recall exists, with AI-written reports on the strongest signals."
 >
-  <h1>BrakeNews</h1>
-  <p>
-    What owners report for any car, which problems are rising before a recall exists, and how
-    early past warnings came. Vehicle pages are generated from the pipeline in Phase 5.
-  </p>
+  <section class="intro">
+    <h1>Car problems owners report, before a recall</h1>
+    <p>
+      BrakeNews reads the 1.6 million complaints owners have filed with NHTSA, groups them into
+      specific problems, and flags vehicles where a problem shows up far more often than it does
+      on other vehicles or than it used to. In past data, most problems that were later recalled
+      were flagged this way first, typically more than a year ahead.
+    </p>
+  </section>
+
+  <section id="reports" aria-labelledby="reports-h">
+    <h2 id="reports-h">Current reports</h2>
+    <p class="muted small">
+      Problems with the highest estimated chance of a recall that does not exist yet, each
+      investigated against the complaints themselves.
+      {through && ` NHTSA data through ${monthLabel(through, true)}.`}
+    </p>
+
+    {reports.length === 0 ? (
+      <p>No reports are published yet.</p>
+    ) : (
+      <ol class="cards">
+        {reports.map((r) => (
+          <li class="card">
+            <h3>
+              <a href={`/investigations/${r.slug}/`}>
+                {vehicleName(r.vehicle)}: <span class="theme">{r.theme.name.toLowerCase()}</span>
+              </a>
+            </h3>
+            <ReadingBadge label={r.reading.label} confidence={r.reading.confidence} surging={r.signal.surging} />
+            <p>{r.headline}</p>
+            <p class="meta small muted num">
+              {r.signal.complaints != null && `${num(r.signal.complaints)} complaints`}
+              {r.signal.recall_risk != null && ` · estimated recall chance ${percent(r.signal.recall_risk)}`}
+            </p>
+          </li>
+        ))}
+      </ol>
+    )}
+  </section>
+
+  <section aria-labelledby="how-h" class="how">
+    <h2 id="how-h">How the reports are made</h2>
+    <ol>
+      <li>Complaint narratives are grouped into problems by their meaning, not NHTSA's broad component codes.</li>
+      <li>
+        Each vehicle and problem is scored: how much more often its complaints are about the problem
+        than other vehicles' are, whether it is rising against the vehicle's own history, and a model's
+        estimate that a recall follows within 24 months.
+      </li>
+      <li>An AI checks that the recent complaints behind a flag are really about that problem on that vehicle.</li>
+      <li>
+        An AI investigator reads the complaints and recalls and writes the report; a second AI checks every
+        claim against the cited complaints. Only reports it approves are published. No person reviews them.
+      </li>
+    </ol>
+    <p class="small muted">
+      A report describes what owners report. It is not a finding that a defect exists, and a high
+      score does not mean a recall will happen.
+    </p>
+  </section>
 </Base>
+
+<style>
+  .intro h1 {
+    font-size: 2.1rem;
+  }
+  .intro p {
+    font-size: 1.15rem;
+    color: var(--ink-2);
+  }
+  .cards {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0 0;
+    display: grid;
+    gap: 1rem;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 1rem 1.25rem 0.5rem;
+  }
+  .card h3 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+  .card h3 a {
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .card h3 a:hover {
+    text-decoration: underline;
+  }
+  .card .theme {
+    font-weight: 500;
+    color: var(--ink-2);
+  }
+  .meta {
+    margin-bottom: 0.5rem;
+  }
+  .how li {
+    margin-bottom: 0.5rem;
+  }
+</style>

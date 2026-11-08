@@ -1,0 +1,331 @@
+---
+// Complaints received per month: one series, so no legend; the heading names it.
+// Built from HTML boxes rather than a scaled SVG so the text keeps its size on a phone.
+// Every value is also in the table view, so the hover tooltip never gates anything.
+import { monthLabel, num, plural } from "../lib/format";
+
+interface Props {
+  monthly: { month: string; complaints: number }[];
+  through?: string | null; // last month to show, even if it had no complaints
+  marker?: { month: string; label: string } | null;
+  caption: string;
+}
+const { monthly, through, marker, caption } = Astro.props;
+
+const ym = (s: string) => s.slice(0, 7);
+const toIndex = (s: string) => {
+  const [y, m] = s.split("-").map(Number);
+  return y * 12 + (m - 1);
+};
+const toMonth = (i: number) => `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`;
+
+const counts = new Map(monthly.map((d) => [ym(d.month), d.complaints]));
+const months = [...counts.keys()].sort();
+const first = months.length ? toIndex(months[0]) : 0;
+const lastData = months.length ? toIndex(months[months.length - 1]) : 0;
+const last = through ? Math.max(lastData, toIndex(through)) : lastData;
+const bars = Array.from({ length: months.length ? last - first + 1 : 0 }, (_, i) => {
+  const month = toMonth(first + i);
+  return { month, value: counts.get(month) ?? 0 };
+});
+
+// Clean y ticks: a 1/2/5 step giving at most four intervals.
+const max = Math.max(1, ...bars.map((b) => b.value));
+const step =
+  [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000].find((s) => max / s <= 4) ?? Math.ceil(max / 4);
+const top = Math.ceil(max / step) * step;
+const ticks = Array.from({ length: top / step + 1 }, (_, i) => i * step);
+
+// X labels: the first month in full, then each January as its year, spaced apart enough
+// (in months) that they cannot collide even on a narrow screen.
+const minGap = Math.max(4, Math.ceil(bars.length / 6));
+const xLabels: { i: number; text: string }[] = [];
+bars.forEach((b, i) => {
+  const isFirst = i === 0;
+  const isJan = b.month.endsWith("-01");
+  if (!isFirst && !isJan) return;
+  const prev = xLabels[xLabels.length - 1];
+  if (prev && i - prev.i < minGap) return;
+  xLabels.push({ i, text: isFirst ? monthLabel(b.month) : b.month.slice(0, 4) });
+});
+
+const pos = (i: number) => ((i + 0.5) / bars.length) * 100;
+const markerIndex = marker ? bars.findIndex((b) => b.month === ym(marker.month)) : -1;
+const peak = bars.reduce((best, b, i) => (b.value > bars[best].value ? i : best), 0);
+const total = bars.reduce((s, b) => s + b.value, 0);
+---
+
+{
+  bars.length > 0 && (
+    <figure class="chart" data-chart>
+      <figcaption class="small muted">{caption}</figcaption>
+      <div class="plot-wrap">
+        <div class="y-axis" aria-hidden="true">
+          {ticks.map((t) => (
+            <span class="tick num" style={`bottom:${(t / top) * 100}%`}>
+              {num(t)}
+            </span>
+          ))}
+        </div>
+        <div class="plot">
+          {ticks.map((t) => (
+            <div class={t === 0 ? "grid base" : "grid"} style={`bottom:${(t / top) * 100}%`} />
+          ))}
+          {markerIndex >= 0 && marker && (
+            <div class="marker" style={`left:${pos(markerIndex)}%`}>
+              <span class={markerIndex > bars.length * 0.6 ? "marker-label end" : "marker-label"}>
+                {marker.label}
+              </span>
+            </div>
+          )}
+          <div class="bars" role="list" aria-label={caption}>
+            {bars.map((b, i) => (
+              <div
+                class="col"
+                role="listitem"
+                tabindex="0"
+                aria-label={`${monthLabel(b.month, true)}: ${plural(b.value, "complaint")}`}
+                data-month={monthLabel(b.month, true)}
+                data-value={plural(b.value, "complaint")}
+              >
+                {b.value > 0 && <div class="bar" style={`height:${(b.value / top) * 100}%`} />}
+                {i === peak && b.value > 0 && (
+                  <span class="peak num" style={`bottom:${(b.value / top) * 100}%`}>
+                    {num(b.value)}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+          <div class="tooltip" role="status" hidden>
+            <strong class="tt-value" />
+            <span class="tt-month" />
+          </div>
+        </div>
+        <div class="x-axis" aria-hidden="true">
+          {xLabels.map((l) => (
+            <span class={l.i === 0 ? "xl start" : "xl"} style={l.i === 0 ? "left:0" : `left:${pos(l.i)}%`}>
+              {l.text}
+            </span>
+          ))}
+        </div>
+      </div>
+      <details class="table-view">
+        <summary class="small">Show as a table</summary>
+        <table class="small">
+          <thead>
+            <tr>
+              <th scope="col">Month</th>
+              <th scope="col">Complaints</th>
+            </tr>
+          </thead>
+          <tbody>
+            {bars.map((b) => (
+              <tr>
+                <td>{monthLabel(b.month)}</td>
+                <td class="num">{num(b.value)}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th scope="row">Total</th>
+              <td class="num">{num(total)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </details>
+    </figure>
+  )
+}
+
+<script>
+  // One tooltip per chart: hover or keyboard focus on a month shows its count.
+  for (const chart of document.querySelectorAll<HTMLElement>("[data-chart]")) {
+    const tip = chart.querySelector<HTMLElement>(".tooltip")!;
+    const plot = chart.querySelector<HTMLElement>(".plot")!;
+    const value = tip.querySelector<HTMLElement>(".tt-value")!;
+    const month = tip.querySelector<HTMLElement>(".tt-month")!;
+    const show = (col: HTMLElement) => {
+      value.textContent = col.dataset.value ?? "";
+      month.textContent = col.dataset.month ?? "";
+      tip.hidden = false;
+      const p = plot.getBoundingClientRect();
+      const c = col.getBoundingClientRect();
+      const x = c.left - p.left + c.width / 2;
+      const half = tip.offsetWidth / 2;
+      tip.style.left = `${Math.min(Math.max(x, half), p.width - half)}px`;
+    };
+    const hide = () => {
+      tip.hidden = true;
+    };
+    for (const col of chart.querySelectorAll<HTMLElement>(".col")) {
+      col.addEventListener("pointerenter", () => show(col));
+      col.addEventListener("focus", () => show(col));
+      col.addEventListener("blur", hide);
+    }
+    chart.querySelector(".bars")!.addEventListener("pointerleave", hide);
+  }
+</script>
+
+<style>
+  .chart {
+    margin: 1rem 0 1.5rem;
+    padding: 1rem 1rem 0.75rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+  }
+  figcaption {
+    margin-bottom: 2.5rem; /* room for the marker label above the peak's value */
+  }
+  .plot-wrap {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 11rem auto;
+    column-gap: 0.5rem;
+  }
+  .y-axis {
+    position: relative;
+    min-width: 1.5rem;
+  }
+  .tick {
+    position: absolute;
+    right: 0;
+    transform: translateY(50%);
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    line-height: 1;
+  }
+  .plot {
+    position: relative;
+  }
+  .grid {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 1px solid var(--rule);
+  }
+  .grid.base {
+    border-top-color: var(--axis);
+  }
+  .bars {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: flex-end;
+  }
+  .col {
+    position: relative;
+    flex: 1 1 0;
+    height: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 0 1px; /* the 2px surface gap between neighbouring bars */
+    outline-offset: -2px;
+  }
+  .bar {
+    width: 100%;
+    max-width: 24px;
+    background: var(--series);
+    border-radius: 4px 4px 0 0;
+  }
+  .col:hover .bar,
+  .col:focus-visible .bar {
+    background: var(--series-hover);
+  }
+  .peak {
+    position: absolute;
+    left: 50%;
+    transform: translate(-50%, -0.2rem);
+    font-size: 0.75rem;
+    color: var(--ink-2);
+    white-space: nowrap;
+    line-height: 1;
+    padding: 0 2px;
+    background: var(--surface); /* sits over the marker line */
+    z-index: 1;
+  }
+  .marker {
+    position: absolute;
+    top: -2.2rem;
+    bottom: 0;
+    width: 0;
+    border-left: 1px solid var(--ink-muted);
+    pointer-events: none;
+  }
+  .marker-label {
+    position: absolute;
+    top: 0;
+    left: 0.3rem;
+    font-size: 0.75rem;
+    color: var(--ink-2);
+    white-space: nowrap;
+    line-height: 1;
+  }
+  .marker-label.end {
+    left: auto;
+    right: 0.3rem;
+  }
+  .x-axis {
+    grid-column: 2;
+    position: relative;
+    height: 1.5rem;
+  }
+  .xl {
+    position: absolute;
+    top: 0.3rem;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: var(--ink-muted);
+    white-space: nowrap;
+  }
+  .xl.start {
+    transform: none;
+  }
+  .tooltip {
+    position: absolute;
+    top: -0.5rem;
+    transform: translate(-50%, -100%);
+    display: flex;
+    flex-direction: column;
+    padding: 0.35rem 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.12);
+    font-size: 0.8rem;
+    line-height: 1.3;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 1;
+  }
+  .tooltip[hidden] {
+    display: none;
+  }
+  .tt-month {
+    color: var(--ink-2);
+  }
+  .table-view {
+    margin-top: 0.5rem;
+  }
+  .table-view summary {
+    cursor: pointer;
+    color: var(--link);
+  }
+  table {
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+  }
+  th,
+  td {
+    text-align: left;
+    padding: 0.2rem 1.5rem 0.2rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  td.num {
+    text-align: right;
+  }
+</style>

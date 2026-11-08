@@ -1,0 +1,40 @@
+---
+// What the report concludes, in the export's public wording, with its confidence.
+// Text only: the reading is never carried by color.
+interface Props {
+  label: string;
+  confidence: "low" | "medium" | "high";
+  surging?: boolean | null;
+}
+const { label, confidence, surging } = Astro.props;
+---
+
+<p class="badges">
+  <span class="pill">{label}</span>
+  <span class="pill quiet">{confidence[0].toUpperCase() + confidence.slice(1)} confidence</span>
+  {surging && <span class="pill quiet" title="This vehicle's recent complaints have shifted toward this problem beyond what its own history predicts">Rising now</span>}
+</p>
+
+<style>
+  .badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.5rem 0 0.75rem;
+  }
+  .pill {
+    display: inline-block;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    background: var(--pill);
+    color: var(--ink);
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  .quiet {
+    background: transparent;
+    border: 1px solid var(--rule);
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+</style>

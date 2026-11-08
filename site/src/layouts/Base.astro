@@ -6,6 +6,7 @@ interface Props {
   description: string;
 }
 const { title, description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site);
 ---
 
 <!doctype html>
@@ -15,11 +16,21 @@ const { title, description } = Astro.props;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonical} />
+    <meta name="color-scheme" content="light dark" />
     <link rel="sitemap" href="/sitemap-index.xml" />
   </head>
   <body>
-    <header><a href="/">BrakeNews</a></header>
-    <main>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="/">BrakeNews</a>
+      <span class="tagline">Owner complaints, read early</span>
+    </header>
+    <main id="main">
       <slot />
     </main>
     <Disclaimer />
@@ -27,11 +38,129 @@ const { title, description } = Astro.props;
 </html>
 
 <style is:global>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --ink-muted: #6f6d68;
+    --rule: #e1e0d9;
+    --axis: #c3c2b7;
+    --accent: #2a78d6;
+    --link: #1c5cab;
+    --callout: #f1f0ec;
+    --pill: #ecebe6;
+    --series: #2a78d6;
+    --series-hover: #1c5cab;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --ink-muted: #9a9890;
+      --rule: #2c2c2a;
+      --axis: #383835;
+      --accent: #3987e5;
+      --link: #86b6ef;
+      --callout: #222220;
+      --pill: #2a2a28;
+      --series: #3987e5;
+      --series-hover: #6da7ec;
+    }
+  }
+
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  html {
+    background: var(--page);
+    color: var(--ink);
+  }
   body {
-    max-width: 48rem;
+    max-width: 50rem;
     margin: 0 auto;
-    padding: 1rem;
-    font-family: system-ui, sans-serif;
-    line-height: 1.5;
+    padding: 0 1.25rem 2rem;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 1.0625rem;
+    line-height: 1.6;
+  }
+  a {
+    color: var(--link);
+    text-underline-offset: 0.15em;
+  }
+  h1,
+  h2,
+  h3 {
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+  h1 {
+    font-size: 2rem;
+    margin: 0.5rem 0 0.25rem;
+  }
+  h2 {
+    font-size: 1.3rem;
+    margin: 2.5rem 0 0.75rem;
+  }
+  h3 {
+    font-size: 1.05rem;
+    margin: 1.5rem 0 0.5rem;
+  }
+  p {
+    margin: 0 0 1rem;
+  }
+  .muted {
+    color: var(--ink-muted);
+  }
+  .small {
+    font-size: 0.875rem;
+  }
+  .mono {
+    font-family: var(--mono);
+    font-size: 0.85em;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .skip {
+    position: absolute;
+    left: -999px;
+  }
+  .skip:focus {
+    left: 1rem;
+    top: 1rem;
+    background: var(--surface);
+    padding: 0.5rem 1rem;
+  }
+  .site-header {
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 1.5rem;
+  }
+  .brand {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  .tagline {
+    color: var(--ink-muted);
+    font-size: 0.9rem;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 </style>

@@ -1,0 +1,301 @@
+---
+// One page per published investigation report (pipeline/export.py).
+import { getCollection, type CollectionEntry } from "astro:content";
+import Base from "../../layouts/Base.astro";
+import ReadingBadge from "../../components/ReadingBadge.astro";
+import MonthlyChart from "../../components/MonthlyChart.astro";
+import {
+  dateLabel, monthLabel, nhtsaRecallUrl, nhtsaVehicleUrl, num, percent, plural, vehicleName,
+} from "../../lib/format";
+
+export async function getStaticPaths() {
+  const reports = await getCollection("investigations");
+  return reports.map((r) => ({ params: { slug: r.data.slug }, props: { report: r.data } }));
+}
+
+interface Props {
+  report: CollectionEntry<"investigations">["data"];
+}
+const { report: r } = Astro.props;
+const s = r.signal;
+const vehicle = vehicleName(r.vehicle);
+const theme = r.theme.name;
+
+const description = r.headline.length > 160 ? `${r.headline.slice(0, 157).trimEnd()}…` : r.headline;
+
+const RELATION_ORDER = ["covers_this_problem", "similar_problem_other_vehicle", "unrelated"];
+const recalls = [...r.recalls].sort(
+  (a, b) => RELATION_ORDER.indexOf(a.relation) - RELATION_ORDER.indexOf(b.relation),
+);
+
+// The earlier of the two flags: the disproportionality signal or the vehicle's own surge.
+const flags = [s.signal_since, s.surge_since].filter((m): m is string => !!m).sort();
+const flagged = flags[0] ?? null;
+
+const severity = [
+  s.crashes != null && plural(s.crashes, "crash", "crashes"),
+  s.fires != null && plural(s.fires, "fire"),
+  s.injured != null && plural(s.injured, "injury", "injuries"),
+  s.deaths != null && plural(s.deaths, "death"),
+].filter(Boolean) as string[];
+
+const hasRisk = s.recall_risk != null;
+
+// Long summaries enumerate groups as "(1) ... (2) ...": give each group its own paragraph.
+const summary = r.summary.split(/\s+(?=\(\d+\)\s)/);
+---
+
+<Base title={`${vehicle}: ${theme.toLowerCase()} | BrakeNews`} description={description}>
+  <nav class="crumbs small"><a href="/#reports">All reports</a></nav>
+
+  <article>
+    <header>
+      <h1>{vehicle}</h1>
+      <p class="theme">{theme}</p>
+      <ReadingBadge label={r.reading.label} confidence={r.reading.confidence} surging={s.surging} />
+    </header>
+
+    <aside class="provenance small" aria-label="How this report was made">
+      <strong>AI-written report.</strong>{" "}{r.provenance.note}
+    </aside>
+
+    <p class="lead">{r.headline}</p>
+
+    <section aria-labelledby="numbers">
+      <h2 id="numbers">The numbers</h2>
+      <dl class="tiles">
+        {s.complaints != null && (
+          <div class="tile">
+            <dt>Complaints</dt>
+            <dd class="value num">{num(s.complaints)}</dd>
+            <dd class="note">
+              {s.first_received && s.last_received
+                ? `Received ${monthLabel(s.first_received)} to ${monthLabel(s.last_received)}`
+                : "About this problem on this vehicle"}
+            </dd>
+          </div>
+        )}
+        {s.last_3_months != null && (
+          <div class="tile">
+            <dt>Last 3 months</dt>
+            <dd class="value num">{num(s.last_3_months)}</dd>
+            <dd class="note">
+              {s.last_3_months_expected != null
+                ? `About ${s.last_3_months_expected} expected from this vehicle's own history`
+                : "Complaints in the latest three months"}
+            </dd>
+          </div>
+        )}
+        {s.recent_prr != null && (
+          <div class="tile">
+            <dt>Compared with other vehicles</dt>
+            <dd class="value num">{s.recent_prr}×</dd>
+            <dd class="note">
+              How much more often this vehicle's complaints from the last 24 months are about this
+              problem than other vehicles' complaints are
+            </dd>
+          </div>
+        )}
+        {hasRisk && (
+          <div class="tile">
+            <dt>Estimated recall chance</dt>
+            <dd class="value num">{percent(s.recall_risk!)}</dd>
+            <dd class="note">
+              Model's estimate that a recall covering this problem follows within 24 months
+              {s.risk_rank != null && s.ranked_pairs != null &&
+                ` (rank ${num(s.risk_rank)} of ${num(s.ranked_pairs)} vehicle-problem pairs)`}
+            </dd>
+          </div>
+        )}
+      </dl>
+      {severity.length > 0 && (
+        <p class="small muted">
+          Reported in these complaints: {severity.join(", ")}.
+          {s.checked_complaints != null && s.checked_on_theme != null &&
+            ` An AI check found ${num(s.checked_on_theme)} of the ${num(s.checked_complaints)} recent complaints are about this problem on this vehicle.`}
+        </p>
+      )}
+
+      <MonthlyChart
+        monthly={s.monthly_complaints}
+        through={r.data_through}
+        marker={flagged ? { month: flagged, label: `Flagged ${monthLabel(flagged)}` } : null}
+        caption={`Complaints per month about this problem, ${vehicle}`}
+      />
+    </section>
+
+    <section aria-labelledby="report">
+      <h2 id="report">What owners report</h2>
+      {summary.map((para) => <p>{para}</p>)}
+      <h3>How it fails</h3>
+      <p>{r.failure_pattern}</p>
+      <h3>Safety risk</h3>
+      <p>{r.safety_risk}</p>
+    </section>
+
+    {r.findings.length > 0 && (
+      <section aria-labelledby="findings">
+        <h2 id="findings">Findings and the complaints behind them</h2>
+        <ol class="findings">
+          {r.findings.map((f) => (
+            <li>
+              <p>{f.text}</p>
+              {f.complaints.length > 0 && (
+                <p class="cites small muted">
+                  NHTSA complaint {f.complaints.length === 1 ? "number" : "numbers"}:{" "}
+                  <span class="mono">{f.complaints.join(", ")}</span>
+                </p>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
+
+    {recalls.length > 0 && (
+      <section aria-labelledby="recalls">
+        <h2 id="recalls">Recalls checked</h2>
+        <ul class="recalls">
+          {recalls.map((rc) => (
+            <li>
+              <p class="recall-head">
+                <a class="mono" href={nhtsaRecallUrl(rc.campaign_id)} rel="noopener">
+                  {rc.campaign_id}
+                </a>
+                <span class="relation small">{rc.relation_label}</span>
+              </p>
+              <p>{rc.note}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
+
+    {r.open_questions.length > 0 && (
+      <section aria-labelledby="questions">
+        <h2 id="questions">Open questions</h2>
+        <ul>
+          {r.open_questions.map((q) => <li>{q}</li>)}
+        </ul>
+      </section>
+    )}
+
+    <section aria-labelledby="about" class="about small">
+      <h2 id="about">About this report</h2>
+      <ul>
+        {r.data_through && <li>NHTSA data through {monthLabel(r.data_through, true)}.</li>}
+        <li>
+          Written {dateLabel(r.provenance.written)} by {r.provenance.investigator_model}
+          {r.provenance.reviewer_model && `, fact-checked by a separate ${r.provenance.reviewer_model} reviewer`}.
+          Not reviewed by a person.
+        </li>
+        <li>
+          The complaint numbers above are NHTSA's own; the original complaints and any open
+          recalls are on <a href={nhtsaVehicleUrl(r.vehicle)} rel="noopener">NHTSA's page for the {vehicle}</a>.
+        </li>
+      </ul>
+    </section>
+  </article>
+</Base>
+
+<style>
+  .crumbs {
+    margin-bottom: 0.5rem;
+  }
+  .crumbs a::before {
+    content: "← ";
+  }
+  .theme {
+    font-size: 1.2rem;
+    color: var(--ink-2);
+    margin: 0;
+  }
+  .provenance {
+    background: var(--callout);
+    border-left: 3px solid var(--axis);
+    padding: 0.75rem 1rem;
+    border-radius: 0 6px 6px 0;
+    margin: 1rem 0 1.5rem;
+    color: var(--ink-2);
+  }
+  .provenance strong {
+    color: var(--ink);
+  }
+  .lead {
+    font-size: 1.2rem;
+    line-height: 1.5;
+  }
+  .tiles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+    gap: 0.75rem;
+    margin: 0 0 1rem;
+  }
+  .tile {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+  }
+  .tile dt {
+    font-size: 0.85rem;
+    color: var(--ink-2);
+  }
+  .tile dd {
+    margin: 0;
+  }
+  .value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  .note {
+    font-size: 0.8rem;
+    color: var(--ink-muted);
+    line-height: 1.4;
+  }
+  .findings {
+    padding-left: 1.25rem;
+  }
+  .findings li {
+    margin-bottom: 1rem;
+  }
+  .findings p {
+    margin-bottom: 0.25rem;
+  }
+  .cites {
+    overflow-wrap: anywhere;
+  }
+  .recalls {
+    list-style: none;
+    padding: 0;
+  }
+  .recalls li {
+    border-top: 1px solid var(--rule);
+    padding-top: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+  .recall-head {
+    display: flex;
+    gap: 0.75rem;
+    align-items: baseline;
+    flex-wrap: wrap;
+    margin-bottom: 0.25rem;
+  }
+  .recall-head a {
+    font-weight: 600;
+  }
+  .relation {
+    color: var(--ink-2);
+  }
+  ul li {
+    margin-bottom: 0.4rem;
+  }
+  .about {
+    margin-top: 3rem;
+    color: var(--ink-2);
+  }
+  .about h2 {
+    font-size: 1rem;
+  }
+</style>
