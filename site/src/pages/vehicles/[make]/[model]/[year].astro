@@ -7,6 +7,8 @@ import RecallItem from "../../../../components/RecallItem.astro";
 import Crumbs from "../../../../components/Crumbs.astro";
 import Icon from "../../../../components/Icon.astro";
 import VehicleSystems from "../../../../components/VehicleSystems.astro";
+import ThreeExperience from "../../../../components/ThreeExperience.astro";
+import { vehicleVisualization } from "../../../../lib/visualization/adapter";
 import { categoryLabel, categoryOf } from "../../../../lib/categories";
 import { makeName, modelName, monthLabel, nhtsaVehicleUrl, num, percent, plural, vehicleName } from "../../../../lib/format";
 import {
@@ -38,10 +40,14 @@ const reports = (await getCollection("investigations"))
   .map((e) => e.data)
   .filter((r) => r.vehicle.make === nhtsaMake && r.vehicle.model === nhtsaModel && r.vehicle.model_year === y.model_year);
 const reportFor = new Map(reports.map((r) => [r.theme.id, r]));
+const visualization = vehicleVisualization(m, y, reports, { name: themeName, category: categoryOf }, name, nhtsaVehicleUrl(v));
 
 const leading = [...y.themes].sort((a, b) => b.complaints - a.complaints).slice(0, 3);
 const flagged = y.themes.filter((t) => t.flagged).sort((a, b) => b.complaints - a.complaints);
 const MIN_RECENT = 3; // as signals.py: fewer recent complaints make the ratio noise
+const ratioOf = (t: (typeof y.themes)[number]) => (t.recent_complaints >= MIN_RECENT && t.recent_prr != null ? t.recent_prr : null);
+// Older vehicles have too few recent complaints for any ratio: then the column is left out.
+const showRatio = y.themes.some((t) => ratioOf(t) != null);
 const recalls = y.recalls.map((id) => ({ id, ...m.recalls[id] })).filter((r) => r.date !== undefined)
   .sort((a, b) => Number(b.do_not_drive || b.park_outside) - Number(a.do_not_drive || a.park_outside) || (b.date ?? "").localeCompare(a.date ?? ""));
 const urgent = recalls.filter((r) => r.do_not_drive || r.park_outside);
@@ -108,7 +114,7 @@ const description =
       <div class="tile">
         <dt>Owner complaints</dt>
         <dd class="value num">{num(y.complaints)}</dd>
-        <dd class="note">Received {monthLabel(y.first_received)} to {monthLabel(y.last_received)}</dd>
+        <dd class="note">First received {monthLabel(y.first_received)}; most recent {monthLabel(y.last_received)}</dd>
       </div>
       <div class="tile">
         <dt>Official recalls listed</dt>
@@ -185,6 +191,7 @@ const description =
     </aside>
   )}
 
+  <ThreeExperience data={visualization} />
   <VehicleSystems themes={y.themes} />
 
   <section aria-labelledby="complaint-history">
@@ -207,7 +214,7 @@ const description =
                 <th scope="col">Problem</th>
                 <th scope="col" class="r">Complaints</th>
                 <th scope="col" class="r">Share</th>
-                <th scope="col" class="r"><abbr title="This problem’s share of this vehicle’s complaints divided by its share of other vehicles’ complaints, over the last 24 months">Share ratio</abbr></th>
+                {showRatio && <th scope="col" class="r"><abbr title="This problem’s share of this vehicle’s complaints divided by its share of other vehicles’ complaints, over the last 24 months">Share ratio</abbr></th>}
                 <th scope="col">Status</th>
               </tr>
             </thead>
@@ -226,7 +233,7 @@ const description =
                     </th>
                     <td class="r num" data-label="Complaints">{num(t.complaints)}</td>
                     <td class="r num" data-label="Share">{percent(t.share)}</td>
-                    <td class="r num" data-label="Share ratio">{t.recent_complaints >= MIN_RECENT && t.recent_prr != null ? `${t.recent_prr}×` : "–"}</td>
+                    {showRatio && <td class="r num" data-label="Share ratio">{ratioOf(t) != null ? `${ratioOf(t)}×` : "–"}</td>}
                     <td class="status">
                       {t.flagged && (
                         <span>
@@ -252,10 +259,11 @@ const description =
           </table>
         </div>
         <p class="small muted">
-          AI groups complaints by meaning; the groups are approximate. Share ratio compares the
+          AI groups complaints by meaning; the groups are approximate.
+          {showRatio && <>Share ratio compares the
           problem’s share of this vehicle’s complaints with its share on other vehicles over the
           last 24 months (shown from 3 recent complaints). A 2× ratio means twice the complaint share,
-          not twice the failure risk. Flags mark unusual shares or recent surges after an AI review
+          not twice the failure risk.</>} Flags mark unusual shares or recent surges after an AI review
           of the complaint content. “First signal” does not mean the pattern has persisted continuously.
           <a href="/method/#model">How recall estimates are calculated</a>.
         </p>

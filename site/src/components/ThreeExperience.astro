@@ -1,0 +1,69 @@
+---
+import type { VisualizationData } from "../lib/visualization/types";
+import "../styles/three-explorer.css";
+interface Props { data?: VisualizationData | null; variant?: "home" | "vehicle" | "report"; }
+const { data = null, variant = "vehicle" } = Astro.props;
+const title = variant === "home" ? "A different view of vehicle problems" : variant === "report" ? "Explore this report in 3D" : "Explore reported systems in 3D";
+const props = JSON.stringify({ data, variant }).replace(/</g, "\\u003c");
+---
+<section class:list={["vx-shell", `vx-shell-${variant}`]} data-three-experience aria-label={title}>
+  <header class="vx-shell-head">
+    <div><p class="vx-eyebrow">Optional vehicle explorer</p><h2>{title}</h2></div>
+    <button type="button" class="vx-close" data-vx-close hidden>Close 3D</button>
+  </header>
+  <div class="vx-poster" data-vx-poster>
+    <img src="/images/vehicle-studio.svg" width="900" height="460" alt="Generic vehicle illustration in a dark studio; not a replica of a specific model" loading="lazy" />
+    <div class="vx-poster-action"><button type="button" data-vx-open hidden>Explore in 3D <span aria-hidden="true">↗</span></button><span>Loads only when opened</span></div>
+  </div>
+  <p class="vx-small vx-intro" data-vx-intro>{variant === "home" ? "Rotate three generic body styles. Look up a vehicle to explore its published complaint categories." : "Rotate a generic illustration and choose a system to explore the existing evidence. Highlighted regions represent complaint categories, not confirmed defective parts."}</p>
+  <p class="vx-small vx-load-status" data-vx-status role="status" aria-live="polite"></p>
+  <div data-vx-root hidden></div>
+  <noscript><p class="vx-small vx-intro">3D requires JavaScript. All complaints, charts, reports and vehicle browsing remain available on this site.</p></noscript>
+  <script type="application/json" data-vx-props is:inline set:html={props}></script>
+</section>
+<script>
+  import type { ExplorerProps } from "./three/VehicleExplorer";
+  let activeClose: (() => void) | null = null;
+  document.querySelectorAll<HTMLElement>("[data-three-experience]").forEach((shell) => {
+    const open = shell.querySelector<HTMLButtonElement>("[data-vx-open]")!;
+    const close = shell.querySelector<HTMLButtonElement>("[data-vx-close]")!;
+    const poster = shell.querySelector<HTMLElement>("[data-vx-poster]")!;
+    const intro = shell.querySelector<HTMLElement>("[data-vx-intro]")!;
+    const status = shell.querySelector<HTMLElement>("[data-vx-status]")!;
+    const root = shell.querySelector<HTMLElement>("[data-vx-root]")!;
+    let unmount: (() => void) | null = null;
+    let generation = 0;
+    const shut = (focus = false) => {
+      generation += 1;
+      unmount?.(); unmount = null;
+      root.hidden = true; poster.hidden = false; intro.hidden = false; close.hidden = true;
+      open.disabled = false; status.textContent = "";
+      if (activeClose === shut) activeClose = null;
+      if (focus) open.focus();
+    };
+    open.hidden = false;
+    open.addEventListener("click", async () => {
+      activeClose?.(); activeClose = shut;
+      const attempt = ++generation;
+      open.disabled = true; close.hidden = false;
+      status.textContent = "Loading the optional 3D explorer…";
+      try {
+        const props = JSON.parse(shell.querySelector("[data-vx-props]")!.textContent!) as ExplorerProps;
+        const module = await import("./three/mount");
+        if (attempt !== generation) return;
+        root.hidden = false;
+        unmount = module.mount(root, props);
+        poster.hidden = true; intro.hidden = true;
+        status.textContent = "3D explorer opened. Camera and system controls are below.";
+        close.focus({ preventScroll: true });
+      } catch {
+        if (attempt !== generation) return;
+        shut();
+        status.textContent = "The 3D explorer could not load. You can retry or use the existing page below.";
+        open.focus({ preventScroll: true });
+      }
+    });
+    close.addEventListener("click", () => shut(true));
+    window.addEventListener("pagehide", () => shut());
+  });
+</script>

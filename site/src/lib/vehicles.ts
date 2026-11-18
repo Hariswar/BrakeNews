@@ -75,15 +75,23 @@ const KEEP = new Set([
   "ABS", "ESC", "TPMS", "FMVSS", "NHTSA", "VIN", "SRS", "LED", "HID", "PCM", "ECM", "BCM", "USA",
   "U.S.", "OTA", "EV", "PHEV", "HVAC", "SUV", "RV", "LLC",
 ]);
+// Month and weekday names always get a capital. "May" and "March" are also ordinary words, so
+// only when a date number follows ("MAY 3, 2004", "MARCH 2010").
+const CALENDAR = new Set([
+  "JANUARY", "FEBRUARY", "APRIL", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER",
+  "DECEMBER", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
+]);
+const DATE_WORDS = new Set(["MAY", "MARCH"]);
 export function readable(text: string | null, names: Set<string> = new Set()): string | null {
   if (!text) return text;
   const letters = text.replace(/[^A-Za-z]/g, "");
   const upper = letters.replace(/[^A-Z]/g, "").length;
   if (letters.length < 20 || upper / letters.length < 0.8) return text;
-  const lowered = text.replace(/[A-Za-z0-9.'&-]+/g, (w) => {
+  const lowered = text.replace(/[A-Za-z0-9.'&-]+/g, (w, at: number) => {
     const bare = w.replace(/[.,]+$/, "");
     if (/\d/.test(w) || KEEP.has(w) || KEEP.has(bare)) return w;
-    if (names.has(bare)) return w[0] + w.slice(1).toLowerCase();
+    const dated = DATE_WORDS.has(bare) && /^\s+\d/.test(text.slice(at + w.length));
+    if (names.has(bare) || CALENDAR.has(bare) || dated) return w[0] + w.slice(1).toLowerCase();
     return w.toLowerCase();
   });
   return lowered.replace(/(^|[.!?]\s+)([a-z])/g, (_, pre, c) => pre + c.toUpperCase());

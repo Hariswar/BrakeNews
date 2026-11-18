@@ -3,6 +3,7 @@
 // by `make export` from the pipeline's own outputs.
 import Base from "../layouts/Base.astro";
 import CompareBars from "../components/CompareBars.astro";
+import WorkflowReplay from "../components/WorkflowReplay.astro";
 import method from "../data/method.json";
 import { monthLabel, num, percent } from "../lib/format";
 
@@ -45,6 +46,8 @@ const months = (range: string) =>
     <a href="#checks">AI checks and reports</a>
     <a href="#limits">Limits</a>
   </nav>
+
+  <WorkflowReplay />
 
   <section aria-labelledby="data">
     <h2 id="data">1. The data</h2>

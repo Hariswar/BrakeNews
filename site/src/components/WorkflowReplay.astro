@@ -1,0 +1,73 @@
+---
+const stages = [
+  { name: "Group complaints", detail: "Similar owner narratives are grouped, named and checked for duplicate themes. Groups are approximate.", href: "#problems" },
+  { name: "Score reporting patterns", detail: "Existing statistical tests flag unusual reporting. The recall model supplies an estimate for a possible recall within 24 months.", href: "#flags" },
+  { name: "Verify complaints", detail: "An AI checks recent complaints behind high-ranked alerts against the stated problem and vehicle. This is not a mechanical inspection.", href: "#checks" },
+  { name: "Investigate", detail: "An AI investigator reads complaints, compares vehicles, checks recalls and writes findings with complaint citations.", href: "#checks" },
+  { name: "Check the report", detail: "A second AI checks the cited findings against complaint text. The investigator revises when needed.", href: "#checks" },
+  { name: "Publish", detail: "Reports approved by the AI reviewer appear on the website. No person reviews them. Publication does not confirm a defect.", href: "#checks" },
+];
+---
+<section class="workflow panel" aria-labelledby="workflow-title" data-workflow>
+  <h2 id="workflow-title">From owner reports to an investigation</h2>
+  <p class="small muted">An explanation of the existing offline process. This demonstration does not run an investigation or change any results.</p>
+  <ol class="workflow-stages">
+    {stages.map((stage, i) => <li data-workflow-stage>
+      <details>
+        <summary><span class="workflow-number">{i + 1}</span>{stage.name}</summary>
+        <p class="small">{stage.detail} <a href={stage.href}>Read the method</a>.</p>
+      </details>
+    </li>)}
+  </ol>
+  <div class="workflow-controls" hidden data-workflow-controls>
+    <button class="btn" type="button" data-workflow-play aria-pressed="false">Play explanation</button>
+    <button class="btn" type="button" data-workflow-next>Next step</button>
+    <span role="status" class="small" data-workflow-status></span>
+  </div>
+</section>
+<script>
+  document.querySelectorAll<HTMLElement>("[data-workflow]").forEach((root) => {
+    const steps = Array.from(root.querySelectorAll<HTMLDetailsElement>("details"));
+    const play = root.querySelector<HTMLButtonElement>("[data-workflow-play]")!;
+    const next = root.querySelector<HTMLButtonElement>("[data-workflow-next]")!;
+    const status = root.querySelector<HTMLElement>("[data-workflow-status]")!;
+    const preference = matchMedia("(prefers-reduced-motion: reduce)");
+    let index = -1, timer: number | null = null;
+    const stop = () => { if (timer !== null) clearInterval(timer); timer = null; play.textContent = "Play explanation"; play.setAttribute("aria-pressed", "false"); };
+    const show = () => {
+      index = (index + 1) % steps.length;
+      steps.forEach((step, i) => { step.open = i === index; });
+      status.textContent = `Step ${index + 1} of ${steps.length}`;
+      if (index === steps.length - 1) stop();
+    };
+    const motion = () => { stop(); play.hidden = preference.matches; };
+    preference.addEventListener("change", motion); motion();
+    root.querySelector<HTMLElement>("[data-workflow-controls]")!.hidden = false;
+    next.addEventListener("click", () => { stop(); show(); });
+    play.addEventListener("click", () => {
+      if (timer !== null) { stop(); return; }
+      if (index === steps.length - 1) index = -1;
+      show(); play.textContent = "Pause explanation"; play.setAttribute("aria-pressed", "true");
+      timer = window.setInterval(show, 4500);
+    });
+    steps.forEach((step) => step.querySelector("summary")!.addEventListener("click", stop));
+    document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
+    const observer = new IntersectionObserver(([entry]) => { if (!entry.isIntersecting) stop(); });
+    observer.observe(root);
+    window.addEventListener("pagehide", () => { stop(); observer.disconnect(); });
+  });
+</script>
+<style>
+  .workflow { padding: 1.5rem; margin-block: 2rem; }
+  .workflow h2 { margin-top: 0; }
+  .workflow-stages { list-style: none; padding: 0; margin: 1.5rem 0; }
+  .workflow-stages li { position: relative; border-left: 1px solid var(--border-strong); margin-left: .9rem; padding: .1rem 0 .1rem 1.5rem; }
+  .workflow-stages li:last-child { border-color: transparent; }
+  .workflow-stages summary { cursor: pointer; min-height: 44px; padding: .5rem 0; font-weight: 600; font-size: .9375rem; }
+  .workflow-stages details[open] { color: var(--brand); }
+  .workflow-stages details p { color: var(--ink-2); margin: .25rem 0 1rem; }
+  .workflow-number { position: absolute; left: -.9rem; width: 1.8rem; height: 1.8rem; display: inline-grid; place-items: center; border: 1px solid var(--border-strong); border-radius: 50%; background: var(--surface); color: var(--ink); font-size: .75rem; }
+  details[open] .workflow-number { color: var(--on-brand); background: var(--brand); border-color: var(--brand); }
+  .workflow-controls { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+  .workflow-controls[hidden], .workflow-controls [hidden] { display: none; }
+</style>

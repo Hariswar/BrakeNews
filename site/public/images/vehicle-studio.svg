@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="460" viewBox="0 0 900 460">
+  <defs>
+    <radialGradient id="bg"><stop stop-color="#253e56"/><stop offset="1" stop-color="#0c1420"/></radialGradient>
+    <linearGradient id="paint" x2=".2" y2="1"><stop stop-color="#b8c9d8"/><stop offset=".24" stop-color="#748c9f"/><stop offset=".5" stop-color="#344e65"/><stop offset="1" stop-color="#152838"/></linearGradient>
+    <linearGradient id="glass" x2="1" y2="1"><stop stop-color="#416079"/><stop offset="1" stop-color="#0d1d2a"/></linearGradient>
+    <linearGradient id="hood" x2=".8" y2="1"><stop stop-color="#8ba4b8"/><stop offset="1" stop-color="#3c5970"/></linearGradient>
+  </defs>
+  <rect width="900" height="460" fill="url(#bg)"/>
+  <ellipse cx="465" cy="359" rx="335" ry="38" fill="#030810" opacity=".7"/>
+  <path d="M80 355 820 355M150 393H760" stroke="#466078" opacity=".22"/>
+  <path d="m164 274 159-47 91-83 194-6 124 80 67 61-14 61-587 10-40-33Z" fill="url(#paint)" stroke="#6a8499" stroke-width="2"/>
+  <path d="m323 227 91-83 194-6 124 80-209 39Z" fill="url(#hood)"/>
+  <path d="m348 224 77-66 77-3 11 87Z" fill="url(#glass)" stroke="#a6bdce"/>
+  <path d="m521 155 78-4 94 64-161 27Z" fill="url(#glass)" stroke="#a6bdce"/>
+  <path d="m174 275 164-43 185 26-197 51Z" fill="url(#hood)"/>
+  <path d="m327 309 196-51 209-40 67 61-14 61-458 10Z" fill="url(#paint)"/>
+  <path d="m531 257 10 77m112-99 20 94m-123-59 24-4m100-14 20-4" stroke="#172e42" stroke-width="3"/>
+  <path d="m174 282 82 10-5 14-78-10m113 1 38 10-2 14-40-9" fill="#daefff"/>
+  <path d="m180 316 136 21v12l-128-18Z" fill="#07131e"/>
+  <path d="m778 273 15 8-4 20-13-4" fill="#e98978"/>
+  <g fill="#09111b" stroke="#1a2937" stroke-width="5"><ellipse cx="408" cy="335" rx="48" ry="60"/><ellipse cx="727" cy="303" rx="37" ry="49"/></g>
+  <g fill="#8a9faf" stroke="#364c60" stroke-width="7"><ellipse cx="408" cy="335" rx="29" ry="40"/><ellipse cx="727" cy="303" rx="22" ry="31"/></g>
+  <g stroke="#22394d" stroke-width="5"><path d="M408 298v74m-27-37h54m-43-25 32 50m0-50-32 50M727 274v58m-20-29h40m-32-20 24 40m0-40-24 40"/></g>
+  <path d="m174 275 150 34m203-57 205-34" stroke="#bed6e8" stroke-width="2" opacity=".8"/>
+</svg>

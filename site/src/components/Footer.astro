@@ -16,6 +16,7 @@ const through = method.data?.last_received ? monthLabel(method.data.last_receive
         it is not affiliated with or endorsed by NHTSA. Check your vehicle's open recalls at{" "}
         <a href="https://www.nhtsa.gov/recalls" rel="noopener">nhtsa.gov/recalls</a>.
       </p>
+      <p class="credit">Built by Hariswar Baburaj</p>
     </div>
     <nav class="footer-links" aria-label="Footer">
       <p class="overline">Explore</p>
@@ -74,6 +75,10 @@ const through = method.data?.last_received ? monthLabel(method.data.last_receive
   .disclaimer {
     max-width: 52ch;
     margin: 0;
+  }
+  .credit {
+    margin: var(--space-3) 0 0;
+    color: var(--ink);
   }
   ul {
     list-style: none;

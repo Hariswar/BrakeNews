@@ -6,6 +6,7 @@ import Icon from "../components/Icon.astro";
 import ReportCard from "../components/ReportCard.astro";
 import Steps from "../components/Steps.astro";
 import VehiclePicker from "../components/VehiclePicker.astro";
+import ThreeExperience from "../components/ThreeExperience.astro";
 import method from "../data/method.json";
 import { allModels } from "../lib/vehicles";
 import { allReports, groupByProblem, latestDataMonth } from "../lib/reports";
@@ -61,6 +62,7 @@ const bt = method.backtest;
           </p>
         )}
       </div>
+      <div class="hero-studio"><ThreeExperience variant="home" /></div>
     </div>
     {method.data && bt && (
       <section class="container track-record" aria-labelledby="track-record-title">
@@ -179,11 +181,17 @@ const bt = method.backtest;
   .hero-grid {
     display: grid;
     gap: var(--space-5);
-    align-items: center;
+    align-items: start;
+    grid-template-areas: "intro" "lookup" "studio";
   }
+  .hero-copy { grid-area: intro; }
+  .lookup { grid-area: lookup; }
+  .hero-studio { grid-area: studio; min-width: 0; }
+  .hero-studio :global(.vx-shell-home) { margin: 0; }
   @media (min-width: 1000px) {
     .hero-grid {
       grid-template-columns: 1.15fr 1fr;
+      grid-template-areas: "intro lookup" "studio lookup";
       gap: var(--space-6);
     }
   }

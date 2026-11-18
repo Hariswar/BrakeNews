@@ -10,10 +10,13 @@ import Icon from "../../components/Icon.astro";
 import InfoTip from "../../components/InfoTip.astro";
 import MonthlyChart from "../../components/MonthlyChart.astro";
 import TrendTag from "../../components/TrendTag.astro";
+import ThreeExperience from "../../components/ThreeExperience.astro";
+import { reportVisualization } from "../../lib/visualization/adapter";
+import { categoryOf } from "../../lib/categories";
 import {
   dateLabel, monthLabel, nhtsaRecallUrl, nhtsaVehicleUrl, num, percent, plural, vehicleName,
 } from "../../lib/format";
-import { findVehicleUrl } from "../../lib/vehicles";
+import { allModels, findVehicleUrl } from "../../lib/vehicles";
 
 export async function getStaticPaths() {
   const reports = await getCollection("investigations");
@@ -48,6 +51,8 @@ const severity = [
 
 const hasRisk = s.recall_risk != null;
 const vehicleUrl = await findVehicleUrl(r.vehicle.make, r.vehicle.model, r.vehicle.model_year);
+const visualModel = (await allModels()).find((m) => m.years.some((y) => y.model_year === r.vehicle.model_year && y.nhtsa[0] === r.vehicle.make && y.nhtsa[1] === r.vehicle.model));
+const visualization = reportVisualization(r, categoryOf(r.theme.id), vehicle, nhtsaVehicleUrl(r.vehicle), visualModel);
 
 // Long summaries enumerate groups as "(1) ... (2) ...": give each group its own paragraph.
 const summary = r.summary.split(/\s+(?=\(\d+\)\s)/);
@@ -75,6 +80,7 @@ const summary = r.summary.split(/\s+(?=\(\d+\)\s)/);
     </AboutData>
 
     <p class="lead headline">{r.headline}</p>
+    <ThreeExperience data={visualization} variant="report" />
 
     <section aria-labelledby="numbers">
       <h2 id="numbers">The numbers</h2>
@@ -85,7 +91,7 @@ const summary = r.summary.split(/\s+(?=\(\d+\)\s)/);
             <dd class="value num">{num(s.complaints)}</dd>
             <dd class="note">
               {s.first_received && s.last_received
-                ? `Received ${monthLabel(s.first_received)} to ${monthLabel(s.last_received)}`
+                ? `First received ${monthLabel(s.first_received)}; most recent ${monthLabel(s.last_received)}`
                 : "About this problem on this vehicle"}
             </dd>
           </div>
